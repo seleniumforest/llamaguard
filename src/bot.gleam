@@ -7,13 +7,16 @@ import features/remove_comments_nonmembers
 import gleam/erlang/process
 import gleam/int
 import gleam/io
+import gleam/list
 import gleam/option
 import gleam/result
 import gleam/string
 import models/bot_session.{type BotSession}
 import storage
 import telega
+import telega/api
 import telega/bot.{type Context}
+import telega/model/types.{GetChatAdministratorsParameters, Int}
 import telega/polling
 import telega/router
 import telega/update.{type Update}
@@ -28,12 +31,6 @@ pub fn main() {
     router.new("default")
     |> router.use_middleware(inject_chat_settings(db))
     |> router.on_custom(fn(_) { True }, handle_update)
-    |> router.on_command("kickNewAccounts", kick_new_accounts.command)
-    |> router.on_commands(["help", "start"], help.command)
-    |> router.on_command(
-      "removeCommentsNonMembers",
-      remove_comments_nonmembers.command,
-    )
 
   let assert Ok(token) = env.get_string("BOT_TOKEN")
   let assert Ok(bot) =
@@ -58,10 +55,42 @@ fn handle_update(
   upd: Update,
 ) -> Result(Context(BotSession, BotError), BotError) {
   process.spawn_unlinked(fn() {
-    use ctx, _upd <- kick_new_accounts.checker(ctx, upd)
-    use _ctx, _upd <- remove_comments_nonmembers.checker(ctx, upd)
-    Nil
+    case upd {
+      update.CommandUpdate(from_id:, chat_id:, command:, ..) -> {
+        let _ =
+          api.get_chat_administrators(
+            ctx.config.api_client,
+            GetChatAdministratorsParameters(Int(chat_id)),
+          )
+          |> result.unwrap([])
+          |> list.find(fn(el) {
+            case el {
+              types.ChatMemberAdministratorChatMember(admin) ->
+                admin.user.id == from_id
+              types.ChatMemberOwnerChatMember(owner) -> owner.user.id == from_id
+              _ -> False
+            }
+          })
+          |> result.try(fn(_) {
+            case command.text {
+              "/kickNewAccounts" -> kick_new_accounts.command(ctx, command)
+              "/removeCommentsNonMembers" ->
+                remove_comments_nonmembers.command(ctx, command)
+              "/help" | "/start" -> help.command(ctx, command)
+              _ -> Ok(ctx)
+            }
+            |> result.replace_error(Nil)
+          })
+        Nil
+      }
+      _ -> {
+        use ctx, _upd <- kick_new_accounts.checker(ctx, upd)
+        use _ctx, _upd <- remove_comments_nonmembers.checker(ctx, upd)
+        Nil
+      }
+    }
   })
+
   Ok(ctx)
 }
 
