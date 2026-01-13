@@ -1,12 +1,12 @@
 import error.{type BotError}
 import gleam/option
+import helpers/reply.{reply}
 import models/bot_session.{type BotSession}
 import sqlight
 import storage
 import telega/api
 import telega/bot.{type Context}
 import telega/model/types.{GetChatMemberParameters, Int}
-import telega/reply
 import telega/update.{type Command, type Update}
 
 pub fn command(
@@ -25,7 +25,7 @@ pub fn command(
 
   case result {
     Error(_) -> {
-      let _ = reply.with_text(ctx, "Error: could not set property")
+      let _ = reply(ctx, "Error: could not set property")
       Error(error.BotError("Error: could not set property"))
     }
     Ok(_) -> {
@@ -34,7 +34,7 @@ pub fn command(
           "Success: bot will NOT delete comments from non members anymore"
         True -> "Success: bot will delete comments from non members"
       }
-      let _ = reply.with_text(ctx, msg)
+      let _ = reply(ctx, msg)
 
       Ok(ctx)
     }

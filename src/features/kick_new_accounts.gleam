@@ -4,13 +4,13 @@ import gleam/list
 import gleam/option
 import gleam/result
 import gleam/string
+import helpers/reply.{reply}
 import models/bot_session.{type BotSession}
 import sqlight
 import storage
 import telega/api
 import telega/bot.{type Context}
 import telega/model/types.{BanChatMemberParameters, Int}
-import telega/reply
 import telega/update.{type Command, type Update, MessageUpdate}
 
 pub fn command(
@@ -40,7 +40,8 @@ pub fn command(
           result
         }
         _, _ -> {
-          let _ = reply.with_text(ctx, "Error: please enter valid argument")
+          let _ = reply(ctx, "Error: please enter valid argument")
+
           Ok(ctx)
         }
       }
@@ -50,8 +51,7 @@ pub fn command(
       let current_state = ctx.session.chat_settings.kick_new_accounts
       let new_state = num
 
-      let result = set_state(ctx, current_state, new_state)
-      result
+      set_state(ctx, current_state, new_state)
     }
   }
 }
@@ -71,20 +71,20 @@ fn set_state(
 
   case result {
     Error(_) -> {
-      let _ = reply.with_text(ctx, "Error: could not set property")
+      let _ = reply(ctx, "Error: could not set property")
       Error(error.BotError("Could not set property"))
     }
     Ok(_) -> {
       let _ = case new_state {
         ns if ns > 0 ->
-          reply.with_text(
+          reply(
             ctx,
             "Success: users with telegram id over "
               <> new_state |> int.to_string()
               <> " will be automatically kicked",
           )
         _ ->
-          reply.with_text(
+          reply(
             ctx,
             "Success: users with telegram id over "
               <> current_state |> int.to_string()

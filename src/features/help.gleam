@@ -1,7 +1,7 @@
 import error.{type BotError}
+import helpers/reply.{reply}
 import models/bot_session.{type BotSession}
 import telega/bot.{type Context}
-import telega/reply
 import telega/update.{type Command}
 
 pub fn command(
@@ -14,6 +14,6 @@ pub fn command(
     <> "/removeCommentsNonMembers - remove all comments from linked channel's posts if user is not a chat member\n"
     <> "/help - show this message"
 
-  let _ = reply.with_text(ctx, msg)
+  let _ = reply(ctx, msg)
   Ok(ctx)
 }
