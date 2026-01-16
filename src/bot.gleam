@@ -1,6 +1,7 @@
 import dot_env as dot
 import dot_env/env
 import error.{type BotError}
+import features/check_chat_clones
 import features/help
 import features/kick_new_accounts
 import features/remove_comments_nonmembers
@@ -34,6 +35,7 @@ pub fn main() {
     |> router.use_middleware(extract_message_id())
     |> router.on_custom(fn(_) { True }, handle_update)
     |> router.on_command("kickNewAccounts", kick_new_accounts.command)
+    |> router.on_command("checkChatClones", check_chat_clones.command)
     |> router.on_commands(["help", "start"], help.command)
     |> router.on_command(
       "removeCommentsNonMembers",
@@ -57,10 +59,10 @@ pub fn main() {
     polling.start_polling_with_offset(
       bot,
       -1,
-      timeout: 10,
+      timeout: 20,
       limit: 100,
       allowed_updates: [],
-      poll_interval: 2000,
+      poll_interval: 1000,
     )
 
   polling.wait_finish(poller)
@@ -71,8 +73,9 @@ fn handle_update(
   upd: Update,
 ) -> Result(Context(BotSession, BotError), BotError) {
   process.spawn_unlinked(fn() {
-    use ctx, _upd <- kick_new_accounts.checker(ctx, upd)
-    use _ctx, _upd <- remove_comments_nonmembers.checker(ctx, upd)
+    use ctx, upd <- kick_new_accounts.checker(ctx, upd)
+    use ctx, upd <- remove_comments_nonmembers.checker(ctx, upd)
+    use _ctx, _upd <- check_chat_clones.checker(ctx, upd)
     Nil
   })
   Ok(ctx)

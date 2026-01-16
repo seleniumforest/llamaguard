@@ -7,6 +7,7 @@ pub type ChatSettings {
     kick_new_accounts: Int,
     remove_comments_nonmembers: Bool,
     no_links: Bool,
+    check_chat_clones: Bool,
   )
 }
 
@@ -15,6 +16,7 @@ pub fn default() {
     kick_new_accounts: 0,
     no_links: False,
     remove_comments_nonmembers: False,
+    check_chat_clones: False,
   )
 }
 
@@ -25,6 +27,7 @@ pub fn chat_encoder(chat: ChatSettings) {
       "remove_comments_nonmembers",
       bool_as_int_encoder(chat.remove_comments_nonmembers),
     ),
+    #("check_chat_clones", bool_as_int_encoder(chat.check_chat_clones)),
     #("no_links", bool_as_int_encoder(chat.no_links)),
   ])
 }
@@ -50,6 +53,8 @@ pub fn chat_decoder() {
     0,
     decode.int,
   )
+
+  //remove_comments_nonmembers
   use remove_comments_nonmembers <- decode.optional_field(
     "remove_comments_nonmembers",
     0,
@@ -58,6 +63,15 @@ pub fn chat_decoder() {
   let assert Ok(remove_comments_nonmembers) =
     int_to_bool(remove_comments_nonmembers)
 
+  //check_chat_clones
+  use check_chat_clones <- decode.optional_field(
+    "check_chat_clones",
+    0,
+    decode.int,
+  )
+  let assert Ok(check_chat_clones) = int_to_bool(check_chat_clones)
+
+  //no_links
   use no_links <- decode.optional_field("no_links", 0, decode.int)
   let assert Ok(no_links) = int_to_bool(no_links)
 
@@ -65,5 +79,6 @@ pub fn chat_decoder() {
     kick_new_accounts:,
     no_links:,
     remove_comments_nonmembers:,
+    check_chat_clones:,
   ))
 }
