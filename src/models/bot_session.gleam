@@ -8,7 +8,12 @@ pub type BotSession {
     chat_settings: ChatSettings,
     db: process.Subject(storage.StorageMessage),
     message_id: option.Option(Int),
+    resources: Resources,
   )
+}
+
+pub type Resources {
+  Resources(female_names: List(String))
 }
 
 pub fn default(db: process.Subject(storage.StorageMessage)) {
@@ -16,5 +21,6 @@ pub fn default(db: process.Subject(storage.StorageMessage)) {
     chat_settings: chat_settings.default(),
     db:,
     message_id: option.None,
+    resources: Resources(female_names: []),
   )
 }

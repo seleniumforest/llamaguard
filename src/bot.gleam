@@ -2,6 +2,7 @@ import dot_env as dot
 import dot_env/env
 import error.{type BotError}
 import features/check_chat_clones
+import features/check_female_name
 import features/help
 import features/kick_new_accounts
 import features/remove_comments_nonmembers
@@ -12,7 +13,8 @@ import gleam/list
 import gleam/option
 import gleam/result
 import gleam/string
-import models/bot_session.{type BotSession}
+import models/bot_session.{type BotSession, Resources}
+import simplifile
 import storage
 import telega
 import telega/api
@@ -27,15 +29,18 @@ pub fn main() {
   |> dot.load
 
   let db = storage.init()
+  let resources = load_static_resources()
 
   let router =
     router.new("default")
     |> router.use_middleware(check_is_admin())
     |> router.use_middleware(inject_chat_settings(db))
+    |> router.use_middleware(inject_static_resources(resources))
     |> router.use_middleware(extract_message_id())
     |> router.on_custom(fn(_) { True }, handle_update)
     |> router.on_command("kickNewAccounts", kick_new_accounts.command)
     |> router.on_command("checkChatClones", check_chat_clones.command)
+    |> router.on_command("checkFemaleName", check_female_name.command)
     |> router.on_commands(["help", "start"], help.command)
     |> router.on_command(
       "removeCommentsNonMembers",
@@ -68,6 +73,43 @@ pub fn main() {
   polling.wait_finish(poller)
 }
 
+fn inject_static_resources(resources: bot_session.Resources) {
+  fn(handler) {
+    fn(ctx: bot.Context(BotSession, BotError), update: update.Update) {
+      let session = bot_session.BotSession(..ctx.session, resources:)
+      let modified_ctx = bot.Context(..ctx, session:)
+      handler(modified_ctx, update)
+    }
+  }
+}
+
+fn load_static_resources() {
+  let names = load_lines("./res/female_names.txt")
+  let names_rus = load_lines("./res/female_names_rus.txt")
+
+  Resources(
+    female_names: names
+    |> list.append(names_rus)
+    |> list.map(fn(x) { string.lowercase(x) }),
+  )
+}
+
+fn load_lines(path: String) {
+  let lines = simplifile.read(path)
+  case lines {
+    Error(e) -> {
+      let msg =
+        "Cannot load file: " <> path <> " Error: " <> e |> string.inspect
+      panic as msg
+    }
+    Ok(content) -> {
+      content
+      |> string.split("\n")
+      |> list.filter(fn(x) { string.length(x) > 0 })
+    }
+  }
+}
+
 fn handle_update(
   ctx: Context(BotSession, BotError),
   upd: Update,
@@ -75,7 +117,8 @@ fn handle_update(
   process.spawn_unlinked(fn() {
     use ctx, upd <- kick_new_accounts.checker(ctx, upd)
     use ctx, upd <- remove_comments_nonmembers.checker(ctx, upd)
-    use _ctx, _upd <- check_chat_clones.checker(ctx, upd)
+    use ctx, upd <- check_chat_clones.checker(ctx, upd)
+    use _ctx, _upd <- check_female_name.checker(ctx, upd)
     Nil
   })
   Ok(ctx)
@@ -142,7 +185,8 @@ fn inject_chat_settings(db) {
           handler(ctx, update)
         }
         Ok(c) -> {
-          let session = bot_session.BotSession(c, db, option.None)
+          let session =
+            bot_session.BotSession(c, db, option.None, Resources([]))
           let modified_ctx = bot.Context(..ctx, session:)
           handler(modified_ctx, update)
         }

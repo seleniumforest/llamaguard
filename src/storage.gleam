@@ -131,7 +131,9 @@ fn unwrap_query_to_settings(
         Ok(json) -> {
           case json.parse(from: json, using: ch.chat_decoder()) {
             Error(e) -> process.send(reply_with, Error(InvalidValueError(e)))
-            Ok(obj) -> process.send(reply_with, Ok(obj))
+            Ok(obj) -> {
+              process.send(reply_with, Ok(obj))
+            }
           }
         }
       }
@@ -140,7 +142,7 @@ fn unwrap_query_to_settings(
 }
 
 fn init_db() {
-  let assert Ok(conn) = sqlight.open("db")
+  let assert Ok(conn) = sqlight.open("file:data.sqlite3")
 
   let sql =
     "CREATE TABLE IF NOT EXISTS chats (
