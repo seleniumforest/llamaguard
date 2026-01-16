@@ -11,7 +11,7 @@ import storage
 import telega/api
 import telega/bot.{type Context}
 import telega/model/types.{BanChatMemberParameters, Int}
-import telega/update.{type Command, type Update, MessageUpdate}
+import telega/update.{type Command, type Update, ChatMemberUpdate}
 
 pub fn command(
   ctx: Context(BotSession, BotError),
@@ -81,14 +81,14 @@ fn set_state(
             ctx,
             "Success: users with telegram id over "
               <> new_state |> int.to_string()
-              <> " will be automatically kicked",
+              <> " will be kicked",
           )
         _ ->
           reply(
             ctx,
             "Success: users with telegram id over "
               <> current_state |> int.to_string()
-              <> " will NOT be kicked anymore",
+              <> " will NOT be kicked",
           )
       }
 
@@ -105,37 +105,37 @@ pub fn checker(
   let ids_to_delete = ctx.session.chat_settings.kick_new_accounts
 
   case upd, ids_to_delete {
-    MessageUpdate(chat_id:, message:, ..), itd if itd > 0 -> {
-      case ids_to_delete {
-        i if i <= 0 -> next(ctx, upd)
-        _ -> {
-          message.new_chat_members
-          |> option.to_result("No new chat members")
-          |> result.unwrap([])
-          |> list.filter(fn(m) { m.id > ids_to_delete && !m.is_bot })
-          |> list.each(fn(m) {
-            echo "Ban user:"
-              <> m.first_name
-              <> m.last_name |> option.unwrap("")
-              <> " id:"
-              <> int.to_string(m.id)
-              <> " reason: fresh account"
+    ChatMemberUpdate(chat_id:, chat_member_updated:, ..), itd if itd > 0 -> {
+      case chat_member_updated.new_chat_member {
+        types.ChatMemberMemberChatMember(member) -> {
+          case member.user.id > ids_to_delete && !member.user.is_bot {
+            False -> next(ctx, upd)
+            True -> {
+              echo "Ban user:"
+                <> member.user.first_name
+                <> member.user.last_name |> option.unwrap("")
+                <> " id:"
+                <> int.to_string(member.user.id)
+                <> " reason: fresh account"
 
-            api.ban_chat_member(
-              ctx.config.api_client,
-              parameters: BanChatMemberParameters(
-                chat_id: Int(chat_id),
-                user_id: m.id,
-                until_date: option.None,
-                revoke_messages: option.Some(True),
-              ),
-            )
-          })
-
-          next(ctx, upd)
+              let _ =
+                api.ban_chat_member(
+                  ctx.config.api_client,
+                  parameters: BanChatMemberParameters(
+                    chat_id: Int(chat_id),
+                    user_id: member.user.id,
+                    until_date: option.None,
+                    revoke_messages: option.Some(True),
+                  ),
+                )
+              next(ctx, upd)
+            }
+          }
         }
+        _ -> next(ctx, upd)
       }
     }
+
     _, _ -> next(ctx, upd)
   }
 }
