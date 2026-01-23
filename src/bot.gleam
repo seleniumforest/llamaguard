@@ -68,7 +68,16 @@ pub fn main() {
       -1,
       timeout: 20,
       limit: 100,
-      allowed_updates: [],
+      allowed_updates: [
+        "message",
+        "edited_message",
+        "channel_post",
+        "edited_channel_post",
+        //"message_reaction",
+        "inline_query",
+        "chosen_inline_result",
+        "chat_member",
+      ],
       poll_interval: 1000,
     )
 

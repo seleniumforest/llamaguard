@@ -5,6 +5,7 @@ import gleam/list
 import gleam/option.{Some}
 import gleam/result
 import gleam/string
+import helpers/log
 import helpers/reply.{reply}
 import models/bot_session.{type BotSession}
 import sqlight
@@ -64,19 +65,34 @@ pub fn checker(
           from.last_name |> option.unwrap("") <> " " <> from.first_name
         let first_last =
           from.first_name <> " " <> from.last_name |> option.unwrap("")
+        let sender_chat_title =
+          message.sender_chat
+          |> option.map(fn(x) { x.title })
+          |> option.flatten
+          |> option.unwrap("")
 
         let chat_title = message.chat.title |> option.unwrap("")
-        let cmp1 = smart_compare(last_first, chat_title)
-        let cmp2 = smart_compare(first_last, chat_title)
 
-        case cmp1, cmp2 {
-          False, False -> Some(next(ctx, upd))
-          _, _ -> {
-            api.delete_message(
+        let compare_result =
+          smart_compare(last_first, chat_title)
+          || smart_compare(first_last, chat_title)
+          || smart_compare(sender_chat_title, chat_title)
+
+        case compare_result {
+          False -> Some(next(ctx, upd))
+          _ -> {
+            log.printf(
+              "Ban user lf: {0} fl: {1} sct: {2} id: {3} reason: chat clone",
+              [last_first, first_last, sender_chat_title],
+            )
+
+            api.ban_chat_member(
               ctx.config.api_client,
-              types.DeleteMessageParameters(
-                chat_id: Int(message.chat.id),
-                message_id: message.message_id,
+              types.BanChatMemberParameters(
+                chat_id: Int(upd.chat_id),
+                user_id: from.id,
+                until_date: option.None,
+                revoke_messages: option.Some(True),
               ),
             )
             |> result.try(fn(_) { Ok(Some(Nil)) })
@@ -91,7 +107,10 @@ pub fn checker(
 }
 
 pub fn smart_compare(str1: String, str2: String) -> Bool {
-  normalize(str1) == normalize(str2)
+  case str1 |> string.is_empty || str2 |> string.is_empty {
+    False -> normalize(str1) == normalize(str2)
+    True -> False
+  }
 }
 
 fn normalize(str: String) -> String {
@@ -113,6 +132,7 @@ fn normalize(str: String) -> String {
   |> string.trim()
 }
 
+//todo give this task to llm
 fn similarity_map() -> Dict(String, String) {
   dict.from_list([
     // Group 4

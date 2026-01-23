@@ -47,9 +47,17 @@ pub fn checker(
     update.ChatMemberUpdate(chat_member_updated:, chat_id:, ..), True -> {
       case chat_member_updated.new_chat_member {
         types.ChatMemberMemberChatMember(member) -> {
+          let first = member.user.first_name |> normalize
+          let last =
+            member.user.last_name
+            |> option.unwrap("")
+            |> normalize
+
           let is_female_name =
             ctx.session.resources.female_names
-            |> list.contains(member.user.first_name |> string.lowercase())
+            |> list.filter(fn(x) { x == first || x == last })
+            |> list.is_empty
+            |> bool.negate
 
           use <- bool.lazy_guard(
             !is_female_name || member.user.is_premium |> option.unwrap(False),
@@ -80,4 +88,10 @@ pub fn checker(
     }
     _, _ -> next(ctx, upd)
   }
+}
+
+fn normalize(name: String) {
+  name
+  |> string.lowercase()
+  |> string.trim
 }
