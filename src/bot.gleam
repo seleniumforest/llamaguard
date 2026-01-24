@@ -6,6 +6,7 @@ import features/check_chat_clones
 import features/check_female_name
 import features/help
 import features/kick_new_accounts
+import features/list_settings
 import features/strict_mode_nonmembers
 import gleam/bool
 import gleam/erlang/process
@@ -47,7 +48,7 @@ pub fn main() {
     |> router.on_command("checkBannedWords", banned_words.command)
     |> router.on_command("addBanWord", banned_words.add_word_command)
     |> router.on_command("removeBanWord", banned_words.remove_word_command)
-    |> router.on_command("listBanWords", banned_words.list_words_command)
+    |> router.on_command("listSettings", list_settings.command)
     |> router.on_commands(["help", "start"], help.command)
 
   let assert Ok(token) = env.get_string("BOT_TOKEN")

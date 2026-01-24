@@ -17,11 +17,7 @@ pub type StorageMessage {
     id: Int,
     prop: String,
     val: sqlight.Value,
-  )
-  SetChatData(
-    reply_with: Subject(Result(Bool, BotError)),
-    id: Int,
-    data: sqlight.Value,
+    as_list: Bool,
   )
 }
 
@@ -50,15 +46,16 @@ pub fn set_chat_property(
   prop: String,
   val: sqlight.Value,
 ) {
-  process.call_forever(actor, fn(a) { SetChatProperty(a, id, prop, val) })
+  process.call_forever(actor, fn(a) { SetChatProperty(a, id, prop, val, False) })
 }
 
-pub fn set_chat_data(
+pub fn set_chat_property_list(
   actor: Subject(StorageMessage),
   id: Int,
-  data: sqlight.Value,
+  prop: String,
+  val: sqlight.Value,
 ) {
-  process.call_forever(actor, fn(a) { SetChatData(a, id, data) })
+  process.call_forever(actor, fn(a) { SetChatProperty(a, id, prop, val, True) })
 }
 
 fn string_decoder() {
@@ -84,10 +81,15 @@ fn handle_message(
       actor.continue(connection)
     }
 
-    SetChatProperty(reply_with:, id:, prop:, val:) -> {
-      let sql = "UPDATE chats 
-      SET data = json_set(data, '$." <> prop <> "', ?) 
-      WHERE chat_id = ?;"
+    SetChatProperty(reply_with:, id:, prop:, val:, as_list:) -> {
+      let sql = case as_list {
+        True -> "UPDATE chats 
+            SET data = json_set(data, '$." <> prop <> "', json(?)) 
+            WHERE chat_id = ?;"
+        False -> "UPDATE chats 
+            SET data = json_set(data, '$." <> prop <> "', ?) 
+            WHERE chat_id = ?;"
+      }
 
       let query =
         sqlight.query(
@@ -123,23 +125,6 @@ fn handle_message(
         )
 
       unwrap_query_to_settings(query, reply_with)
-      actor.continue(connection)
-    }
-
-    SetChatData(reply_with:, id:, data:) -> {
-      let query =
-        sqlight.query(
-          "UPDATE chats SET data = ? WHERE chat_id = ?;",
-          on: connection,
-          with: [data, sqlight.int(id)],
-          expecting: decode.dynamic,
-        )
-
-      case query {
-        Error(e) -> process.send(reply_with, Error(DbConnectionError(e)))
-        Ok(_) -> process.send(reply_with, Ok(True))
-      }
-
       actor.continue(connection)
     }
   }

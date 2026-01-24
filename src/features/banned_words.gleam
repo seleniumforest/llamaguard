@@ -5,11 +5,11 @@ import gleam/json
 import gleam/list
 import gleam/option
 import gleam/result
+import gleam/set
 import gleam/string
 import helpers/log
 import helpers/reply.{reply}
 import models/bot_session.{type BotSession}
-import models/chat_settings
 import sqlight
 import storage
 import telega/api
@@ -25,7 +25,7 @@ pub fn command(
   let current_state = ctx.session.chat_settings.check_banned_words
   let new_state = !current_state
 
-  storage.set_chat_property(
+  storage.set_chat_property_list(
     ctx.session.db,
     ctx.update.chat_id,
     "check_banned_words",
@@ -47,11 +47,11 @@ pub fn add_word_command(
 ) -> Result(Context(BotSession, BotError), BotError) {
   let words_to_add =
     cmd.text
+    |> string.lowercase
     |> string.split(" ")
     |> list.rest()
     |> result.unwrap([])
     |> list.filter(fn(x) { !string.is_empty(x) })
-    |> list.map(fn(x) { string.lowercase(x) })
 
   case list.is_empty(words_to_add) {
     True -> reply(ctx, "Usage: /addBanWord <word1> [word2] [word3] ...")
@@ -61,24 +61,25 @@ pub fn add_word_command(
         list.append(current_words, words_to_add)
         |> list.unique
 
-      let new_settings =
-        chat_settings.ChatSettings(
-          ..ctx.session.chat_settings,
-          banned_words: new_words,
-        )
       let json_value =
-        new_settings
-        |> chat_settings.chat_encoder
+        new_words
+        |> json.array(of: json.string)
         |> json.to_string
         |> sqlight.text
 
-      storage.set_chat_data(ctx.session.db, ctx.update.chat_id, json_value)
+      storage.set_chat_property_list(
+        ctx.session.db,
+        ctx.update.chat_id,
+        "banned_words",
+        json_value,
+      )
       |> result.try(fn(_) {
         reply(
           ctx,
-          "Added words: " <> string.join(words_to_add, ", ") <> "\nTotal: " <> int.to_string(
-            list.length(new_words),
-          ),
+          log.format("Added words: {0}\nTotal:  {1}", [
+            string.join(words_to_add, ", "),
+            int.to_string(list.length(new_words)),
+          ]),
         )
       })
     }
@@ -107,46 +108,27 @@ pub fn remove_word_command(
         current_words
         |> list.filter(fn(w) { !list.contains(words_to_remove, w) })
 
-      let new_settings =
-        chat_settings.ChatSettings(
-          ..ctx.session.chat_settings,
-          banned_words: new_words,
-        )
       let json_value =
-        new_settings
-        |> chat_settings.chat_encoder
+        new_words
+        |> json.array(of: json.string)
         |> json.to_string
         |> sqlight.text
 
-      storage.set_chat_data(ctx.session.db, ctx.update.chat_id, json_value)
+      storage.set_chat_property_list(
+        ctx.session.db,
+        ctx.update.chat_id,
+        "banned_words",
+        json_value,
+      )
       |> result.try(fn(_) {
         reply(
           ctx,
-          "Removed words: " <> string.join(words_to_remove, ", ") <> "\nRemaining: " <> int.to_string(
-            list.length(new_words),
-          ),
+          log.format("Removed words: {0}\nRemaining: {1}", [
+            string.join(words_to_remove, ", "),
+            int.to_string(list.length(new_words)),
+          ]),
         )
       })
-    }
-  }
-  |> result.try(fn(_) { Ok(ctx) })
-}
-
-// List all banned words
-pub fn list_words_command(
-  ctx: Context(BotSession, BotError),
-  _cmd: Command,
-) -> Result(Context(BotSession, BotError), BotError) {
-  let words = ctx.session.chat_settings.banned_words
-
-  case list.is_empty(words) {
-    True -> reply(ctx, "No banned words configured.\nUse /addBanWord <word> to add.")
-    False -> {
-      let words_list = string.join(words, ", ")
-      reply(
-        ctx,
-        "Banned words (" <> int.to_string(list.length(words)) <> "):\n" <> words_list,
-      )
     }
   }
   |> result.try(fn(_) { Ok(ctx) })
@@ -158,13 +140,11 @@ pub fn checker(
   upd: Update,
   next: fn(Context(BotSession, BotError), Update) -> Nil,
 ) -> Nil {
-  use <- bool.lazy_guard(!ctx.session.chat_settings.check_banned_words, fn() {
-    next(ctx, upd)
-  })
-
   let banned_words = ctx.session.chat_settings.banned_words
+  let needs_check =
+    ctx.session.chat_settings.check_banned_words && !list.is_empty(banned_words)
 
-  use <- bool.lazy_guard(list.is_empty(banned_words), fn() { next(ctx, upd) })
+  use <- bool.lazy_guard(!needs_check, fn() { next(ctx, upd) })
 
   case upd {
     update.TextUpdate(from_id:, chat_id:, message:, ..)
@@ -176,11 +156,14 @@ pub fn checker(
     | update.VoiceUpdate(from_id:, chat_id:, message:, ..) -> {
       let text = message.text |> option.unwrap("")
       let caption = message.caption |> option.unwrap("")
-      let full_text = string.lowercase(text <> " " <> caption)
 
       let contains_banned =
-        banned_words
-        |> list.any(fn(word) { string.contains(full_text, word) })
+        string.lowercase(text <> " " <> caption)
+        |> string.split(" ")
+        |> list.filter(fn(x) { !string.is_empty(x) })
+        |> set.from_list
+        |> set.is_disjoint(set.from_list(banned_words))
+        |> bool.negate
 
       use <- bool.lazy_guard(!contains_banned, fn() { next(ctx, upd) })
 
@@ -198,16 +181,26 @@ pub fn checker(
           ),
         )
 
-      // Then ban the user
-      api.ban_chat_member(
-        ctx.config.api_client,
-        parameters: BanChatMemberParameters(
-          chat_id: Int(chat_id),
-          user_id: from_id,
-          until_date: option.None,
-          revoke_messages: option.Some(True),
-        ),
-      )
+      case message.sender_chat {
+        option.None ->
+          api.ban_chat_member(
+            ctx.config.api_client,
+            parameters: BanChatMemberParameters(
+              chat_id: Int(chat_id),
+              user_id: from_id,
+              until_date: option.None,
+              revoke_messages: option.Some(True),
+            ),
+          )
+        option.Some(sc) ->
+          api.ban_chat_sender_chat(
+            ctx.config.api_client,
+            types.BanChatSenderChatParameters(
+              chat_id: Int(chat_id),
+              sender_chat_id: sc.id,
+            ),
+          )
+      }
       |> result.map(fn(_) { Nil })
       |> result.lazy_unwrap(fn() { next(ctx, upd) })
     }
