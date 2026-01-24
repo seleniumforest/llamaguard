@@ -1,8 +1,9 @@
 import error.{type BotError}
 import gleam/bool
 import gleam/dict.{type Dict}
+import gleam/int
 import gleam/list
-import gleam/option.{Some}
+import gleam/option.{None, Some}
 import gleam/result
 import gleam/string
 import helpers/log
@@ -59,47 +60,85 @@ pub fn checker(
     | update.TextUpdate(message:, ..)
     | update.VideoUpdate(message:, ..)
     | update.VoiceUpdate(message:, ..) -> {
-      message.from
-      |> option.then(fn(from) {
-        let last_first =
-          from.last_name |> option.unwrap("") <> " " <> from.first_name
-        let first_last =
-          from.first_name <> " " <> from.last_name |> option.unwrap("")
-        let sender_chat_title =
-          message.sender_chat
-          |> option.map(fn(x) { x.title })
-          |> option.flatten
-          |> option.unwrap("")
+      let is_forwarded_post =
+        message.from |> option.map(fn(u) { u.id }) == Some(777_000)
 
-        let chat_title = message.chat.title |> option.unwrap("")
+      use <- bool.lazy_guard(is_forwarded_post, fn() { next(ctx, upd) })
 
-        let compare_result =
-          smart_compare(last_first, chat_title)
-          || smart_compare(first_last, chat_title)
-          || smart_compare(sender_chat_title, chat_title)
+      case message.sender_chat {
+        Some(sc) -> {
+          let sender_chat_title = sc.title |> option.unwrap("")
+          let chat_title = message.chat.title |> option.unwrap("")
+          log.printf("comparing {0} with {1}", [sender_chat_title, chat_title])
+          let compare_result = smart_compare(sender_chat_title, chat_title)
 
-        case compare_result {
-          False -> Some(next(ctx, upd))
-          _ -> {
-            log.printf(
-              "Ban user lf: {0} fl: {1} sct: {2} id: {3} reason: chat clone",
-              [last_first, first_last, sender_chat_title],
-            )
+          case compare_result {
+            False -> Some(next(ctx, upd))
+            True -> {
+              log.printf("Delete message from {0} id {1} reason: chat clone", [
+                sender_chat_title,
+                sc.id |> int.to_string,
+              ])
 
-            api.ban_chat_member(
-              ctx.config.api_client,
-              types.BanChatMemberParameters(
-                chat_id: Int(upd.chat_id),
-                user_id: from.id,
-                until_date: option.None,
-                revoke_messages: option.Some(True),
-              ),
-            )
-            |> result.try(fn(_) { Ok(Some(Nil)) })
-            |> result.lazy_unwrap(fn() { Some(next(ctx, upd)) })
+              let _ =
+                api.delete_message(
+                  ctx.config.api_client,
+                  types.DeleteMessageParameters(
+                    chat_id: Int(message.chat.id),
+                    message_id: message.message_id,
+                  ),
+                )
+
+              api.ban_chat_sender_chat(
+                ctx.config.api_client,
+                types.BanChatSenderChatParameters(
+                  chat_id: Int(upd.chat_id),
+                  sender_chat_id: sc.id,
+                ),
+              )
+              |> result.try(fn(_) { Ok(Some(Nil)) })
+              |> result.lazy_unwrap(fn() { Some(next(ctx, upd)) })
+            }
           }
         }
-      })
+        None -> {
+          case message.from {
+            Some(from) -> {
+              let last_first =
+                from.last_name |> option.unwrap("") <> " " <> from.first_name
+              let first_last =
+                from.first_name <> " " <> from.last_name |> option.unwrap("")
+              let chat_title = message.chat.title |> option.unwrap("")
+              let compare_result =
+                smart_compare(last_first, chat_title)
+                || smart_compare(first_last, chat_title)
+
+              case compare_result {
+                False -> Some(next(ctx, upd))
+                _ -> {
+                  log.printf("Ban user lf: {0} fl: {1} reason: chat clone", [
+                    last_first,
+                    first_last,
+                  ])
+
+                  api.ban_chat_member(
+                    ctx.config.api_client,
+                    types.BanChatMemberParameters(
+                      chat_id: Int(upd.chat_id),
+                      user_id: from.id,
+                      until_date: option.None,
+                      revoke_messages: option.Some(True),
+                    ),
+                  )
+                  |> result.try(fn(_) { Ok(Some(Nil)) })
+                  |> result.lazy_unwrap(fn() { Some(next(ctx, upd)) })
+                }
+              }
+            }
+            None -> Some(next(ctx, upd))
+          }
+        }
+      }
       |> option.lazy_unwrap(fn() { next(ctx, upd) })
     }
     _ -> next(ctx, upd)
