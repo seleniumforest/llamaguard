@@ -71,17 +71,14 @@ pub fn checker(
       |> result.try(fn(mem) {
         case mem {
           types.ChatMemberLeftChatMember(member) -> {
+            let needs_delete =
+              has_restricted_content(message)
+              || has_suspicious_profile(ctx, member)
+
             use <- bool.lazy_guard(
-              member.user.is_premium |> option.unwrap(False),
+              !needs_delete || member.user.is_premium |> option.unwrap(False),
               fn() { Ok(next(ctx, upd)) },
             )
-
-            let is_female_name =
-              ctx.session.resources.female_names
-              |> list.contains(member.user.first_name |> string.lowercase())
-
-            let needs_delete = is_female_name || has_some_shit(message)
-            use <- bool.lazy_guard(!needs_delete, fn() { Ok(next(ctx, upd)) })
 
             api.delete_message(
               ctx.config.api_client,
@@ -105,7 +102,42 @@ pub fn checker(
   }
 }
 
-fn has_some_shit(msg: types.Message) -> Bool {
+fn has_suspicious_profile(
+  ctx: Context(BotSession, BotError),
+  member: types.ChatMemberLeft,
+) -> Bool {
+  let check_username = member.user.username |> option.is_none
+  let check_female_name = case ctx.session.chat_settings.check_female_name {
+    False -> False
+    True -> {
+      let first =
+        ctx.session.resources.female_names
+        |> list.contains(
+          member.user.first_name |> string.lowercase() |> string.trim,
+        )
+
+      let last =
+        ctx.session.resources.female_names
+        |> list.contains(
+          member.user.last_name
+          |> option.unwrap("")
+          |> string.lowercase()
+          |> string.trim,
+        )
+
+      first || last
+    }
+  }
+
+  let check_id = case ctx.session.chat_settings.kick_new_accounts {
+    i if i > 0 -> member.user.id > i
+    _ -> False
+  }
+
+  check_username || check_female_name || check_id
+}
+
+fn has_restricted_content(msg: types.Message) -> Bool {
   let is_audio = msg.audio |> option.is_some
   let is_photo = msg.photo |> option.is_some
   let is_video = msg.video |> option.is_some

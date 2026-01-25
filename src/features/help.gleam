@@ -12,7 +12,7 @@ pub fn command(
   let msg =
     "Available commands:\n"
     <> "/kickNewAccounts [8000000000] - kick all users with telegram id over given.\n"
-    <> "/strictModeNonMembers - strict mode (no media, links, reactions) for forwarded messages from linked channel\n"
+    <> "/strictModeNonMembers - strict mode (no media, links, reactions, kickNewAccounts id limit, empty username) for forwarded messages from linked channel\n"
     <> "/checkChatClones - bot will try to find accounts/channels whose name is similar to chat title\n"
     <> "/checkFemaleName - bot will kick joining accounts with ENG/RU female name\n"
     <> "\n"
