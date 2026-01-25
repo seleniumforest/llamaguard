@@ -59,10 +59,7 @@ pub fn checker(
             |> list.is_empty
             |> bool.negate
 
-          use <- bool.lazy_guard(
-            !is_female_name || member.user.is_premium |> option.unwrap(False),
-            fn() { next(ctx, upd) },
-          )
+          use <- bool.lazy_guard(!is_female_name, fn() { next(ctx, upd) })
 
           log.printf("Ban user: {0} {1} id: {2} reason: woman", [
             member.user.first_name,

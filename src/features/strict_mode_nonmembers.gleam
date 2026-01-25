@@ -75,10 +75,7 @@ pub fn checker(
               has_restricted_content(message)
               || has_suspicious_profile(ctx, member)
 
-            use <- bool.lazy_guard(
-              !needs_delete || member.user.is_premium |> option.unwrap(False),
-              fn() { Ok(next(ctx, upd)) },
-            )
+            use <- bool.lazy_guard(!needs_delete, fn() { Ok(next(ctx, upd)) })
 
             api.delete_message(
               ctx.config.api_client,

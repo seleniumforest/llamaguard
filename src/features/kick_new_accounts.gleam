@@ -95,11 +95,6 @@ pub fn checker(
     ChatMemberUpdate(chat_id:, chat_member_updated:, ..), itd if itd > 0 -> {
       case chat_member_updated.new_chat_member {
         types.ChatMemberMemberChatMember(member) -> {
-          use <- bool.lazy_guard(
-            member.user.is_premium |> option.unwrap(False),
-            fn() { next(ctx, upd) },
-          )
-
           let needs_ban = member.user.id > ids_to_delete && !member.user.is_bot
           use <- bool.lazy_guard(!needs_ban, fn() { next(ctx, upd) })
 
