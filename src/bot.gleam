@@ -107,6 +107,7 @@ fn load_static_resources() {
   Resources(
     female_names: names
     |> list.append(names_rus)
+    |> list.unique
     |> list.map(fn(x) { string.lowercase(x) }),
   )
 }

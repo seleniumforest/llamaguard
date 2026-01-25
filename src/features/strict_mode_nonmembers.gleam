@@ -1,5 +1,6 @@
 import error.{type BotError}
 import gleam/bool
+import gleam/int
 import gleam/list
 import gleam/option
 import gleam/regexp
@@ -71,11 +72,26 @@ pub fn checker(
       |> result.try(fn(mem) {
         case mem {
           types.ChatMemberLeftChatMember(member) -> {
-            let needs_delete =
-              has_restricted_content(message)
-              || has_suspicious_profile(ctx, member)
+            let restricted = has_restricted_content(message)
+            let suspicious = has_suspicious_profile(ctx, member)
 
-            use <- bool.lazy_guard(!needs_delete, fn() { Ok(next(ctx, upd)) })
+            use <- bool.lazy_guard(!restricted && !suspicious, fn() {
+              Ok(next(ctx, upd))
+            })
+
+            let reason = case restricted, suspicious {
+              True, True -> "restricted and suspicious profile"
+              True, False -> "restricted"
+              False, True -> "suspicious profile"
+              _, _ -> ""
+            }
+
+            log.printf("Ban user: {0} {1} id: {2} reason: {3}", [
+              member.user.first_name,
+              member.user.last_name |> option.unwrap(""),
+              member.user.id |> int.to_string,
+              reason,
+            ])
 
             api.delete_message(
               ctx.config.api_client,
