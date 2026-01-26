@@ -1,8 +1,10 @@
-# tgbot
+# llamaguard
 
 A Telegram moderation bot written in Gleam (targeting the Erlang VM). The bot provides several moderation features for group chats: kicking new/unauthorized accounts, toggling strict mode for forwarded messages from linked channels, checking for chat clones, filtering by female names, and managing banned words.
 
-This bot is still not a complete anti-spam solution, but can be used with other bots' captcha/anti-spam features. For now, it supposed to be an addition for existing anti-spam bots.  
+This bot is still not a complete anti-spam solution, but can be used with other bots' captcha/anti-spam features. For now, it supposed to be an addition for existing anti-spam bots. Deployed at @llamaguard_bot. 
+
+Llamas act as effective, natural guardians for alpacas by utilizing their territorial, assertive behavior to deter predators like coyotes, foxes, and loose dogs.
 
 This README explains how to set up Erlang and Gleam, build the project, run the bot, and lists the bot commands.
 
