@@ -1,14 +1,10 @@
-import error.{type BotError}
 import gleam/result
-import helpers/reply.{reply}
-import models/bot_session.{type BotSession}
-import telega/bot.{type Context}
+import infra/alias.{type BotContext}
+import infra/reply.{reply}
+import models/error.{type BotError}
 import telega/update.{type Command}
 
-pub fn command(
-  ctx: Context(BotSession, BotError),
-  _cmd: Command,
-) -> Result(Context(BotSession, BotError), BotError) {
+pub fn command(ctx: BotContext, _cmd: Command) -> Result(BotContext, BotError) {
   let msg =
     "Available commands:\n"
     <> "/kickNewAccounts [8000000000] - kick all users with telegram id over given.\n"

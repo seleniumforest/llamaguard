@@ -1,24 +1,20 @@
-import error.{type BotError}
 import gleam/bool
 import gleam/int
 import gleam/list
 import gleam/option
 import gleam/result
 import gleam/string
-import helpers/log
-import helpers/reply.{reply, replyf}
-import models/bot_session.{type BotSession}
+import infra/alias.{type BotContext}
+import infra/log
+import infra/reply.{reply, replyf}
+import infra/storage
+import models/error.{type BotError}
 import sqlight
-import storage
 import telega/api
-import telega/bot.{type Context}
 import telega/model/types.{BanChatMemberParameters, Int}
 import telega/update.{type Command, type Update, ChatMemberUpdate}
 
-pub fn command(
-  ctx: Context(BotSession, BotError),
-  cmd: Command,
-) -> Result(Context(BotSession, BotError), BotError) {
+pub fn command(ctx: BotContext, cmd: Command) -> Result(BotContext, BotError) {
   let cmd_args =
     cmd.text
     |> string.split(" ")
@@ -55,11 +51,7 @@ pub fn command(
   |> result.try(fn(_) { Ok(ctx) })
 }
 
-fn set_state(
-  ctx: Context(BotSession, BotError),
-  current_state: Int,
-  new_state: Int,
-) {
+fn set_state(ctx: BotContext, current_state: Int, new_state: Int) {
   storage.set_chat_property(
     ctx.session.db,
     ctx.update.chat_id,
@@ -85,9 +77,9 @@ fn set_state(
 }
 
 pub fn checker(
-  ctx: Context(BotSession, BotError),
+  ctx: BotContext,
   upd: Update,
-  next: fn(Context(BotSession, BotError), Update) -> Nil,
+  next: fn(BotContext, Update) -> Nil,
 ) -> Nil {
   let ids_to_delete = ctx.session.chat_settings.kick_new_accounts
 

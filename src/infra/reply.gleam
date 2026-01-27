@@ -1,14 +1,13 @@
-import error.{type BotError}
 import gleam/option.{None, Some}
 import gleam/result
-import helpers/log
-import models/bot_session.{type BotSession}
+import infra/alias.{type BotContext}
+import infra/log
+import models/error
 import telega/api
-import telega/bot
 import telega/model/types.{ReplyParameters, SendMessageParameters, Str}
 
 pub fn replyf(
-  ctx: bot.Context(BotSession, BotError),
+  ctx: BotContext,
   format: String,
   data: List(String),
 ) -> Result(types.Message, error.BotError) {
@@ -16,7 +15,7 @@ pub fn replyf(
 }
 
 pub fn reply(
-  ctx: bot.Context(BotSession, BotError),
+  ctx: BotContext,
   text: String,
 ) -> Result(types.Message, error.BotError) {
   case ctx.session.message_id {

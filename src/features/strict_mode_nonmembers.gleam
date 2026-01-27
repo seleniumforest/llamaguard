@@ -1,4 +1,3 @@
-import error.{type BotError}
 import gleam/bool
 import gleam/int
 import gleam/list
@@ -6,20 +5,17 @@ import gleam/option
 import gleam/regexp
 import gleam/result
 import gleam/string
-import helpers/log
-import helpers/reply.{reply}
-import models/bot_session.{type BotSession}
+import infra/alias.{type BotContext}
+import infra/log
+import infra/reply.{reply}
+import infra/storage
+import models/error.{type BotError}
 import sqlight
-import storage
 import telega/api
-import telega/bot.{type Context}
 import telega/model/types.{GetChatMemberParameters, Int}
 import telega/update.{type Command, type Update}
 
-pub fn command(
-  ctx: Context(BotSession, BotError),
-  _cmd: Command,
-) -> Result(Context(BotSession, BotError), BotError) {
+pub fn command(ctx: BotContext, _cmd: Command) -> Result(BotContext, BotError) {
   let current_state = ctx.session.chat_settings.strict_mode_nonmembers
   let new_state = !current_state
 
@@ -40,9 +36,9 @@ pub fn command(
 }
 
 pub fn checker(
-  ctx: Context(BotSession, BotError),
+  ctx: BotContext,
   upd: Update,
-  next: fn(Context(BotSession, BotError), Update) -> Nil,
+  next: fn(BotContext, Update) -> Nil,
 ) -> Nil {
   use <- bool.lazy_guard(
     !ctx.session.chat_settings.strict_mode_nonmembers,
@@ -115,10 +111,7 @@ pub fn checker(
   }
 }
 
-fn has_suspicious_profile(
-  ctx: Context(BotSession, BotError),
-  member: types.ChatMemberLeft,
-) -> Bool {
+fn has_suspicious_profile(ctx: BotContext, member: types.ChatMemberLeft) -> Bool {
   let check_username = member.user.username |> option.is_none
   let check_female_name = case ctx.session.chat_settings.check_female_name {
     False -> False

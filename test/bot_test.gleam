@@ -2,7 +2,7 @@ import features/check_chat_clones.{smart_compare}
 import gleam/list
 import gleeunit
 import gleeunit/should
-import helpers/log
+import infra/log
 
 pub fn main() {
   gleeunit.main()

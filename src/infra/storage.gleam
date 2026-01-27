@@ -1,12 +1,12 @@
-import error.{
-  type BotError, DbConnectionError, EmptyDataError, InvalidValueError,
-}
 import gleam/dynamic/decode
 import gleam/erlang/process.{type Subject}
 import gleam/json
 import gleam/list
 import gleam/otp/actor
 import models/chat_settings.{type ChatSettings} as ch
+import models/error.{
+  type BotError, DbConnectionError, EmptyDataError, InvalidValueError,
+}
 import sqlight
 
 pub type StorageMessage {

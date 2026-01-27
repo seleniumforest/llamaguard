@@ -1,6 +1,6 @@
-import error
 import gleam/dynamic/decode
 import gleam/json
+import models/error
 
 pub type ChatSettings {
   ChatSettings(

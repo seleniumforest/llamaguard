@@ -1,17 +1,13 @@
-import error.{type BotError}
 import gleam/list
 import gleam/result
 import gleam/string
-import helpers/log
-import helpers/reply.{reply}
-import models/bot_session.{type BotSession}
-import telega/bot.{type Context}
+import infra/alias.{type BotContext}
+import infra/log
+import infra/reply.{reply}
+import models/error.{type BotError}
 import telega/update.{type Command}
 
-pub fn command(
-  ctx: Context(BotSession, BotError),
-  _cmd: Command,
-) -> Result(Context(BotSession, BotError), BotError) {
+pub fn command(ctx: BotContext, _cmd: Command) -> Result(BotContext, BotError) {
   let s = ctx.session.chat_settings
   let words = case s.banned_words |> list.is_empty {
     False -> s.banned_words |> string.join(", ")
