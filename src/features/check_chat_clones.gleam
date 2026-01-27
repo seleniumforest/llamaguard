@@ -6,34 +6,21 @@ import gleam/option.{None, Some}
 import gleam/result
 import gleam/string
 import infra/alias.{type BotContext}
+import infra/helpers
 import infra/log
-import infra/reply.{reply}
-import infra/storage
 import models/error.{type BotError}
-import sqlight
 import telega/api
 import telega/model/types.{Int}
 import telega/update.{type Command, type Update}
 
 pub fn command(ctx: BotContext, _cmd: Command) -> Result(BotContext, BotError) {
-  let current_state = ctx.session.chat_settings.check_chat_clones
-  let new_state = !current_state
-
-  storage.set_chat_property(
-    ctx.session.db,
-    ctx.update.chat_id,
+  helpers.flip_bool_setting_and_reply(
+    ctx,
     "check_chat_clones",
-    sqlight.bool(new_state),
+    fn(cs) { cs.check_chat_clones },
+    "Success: bot will try to find accounts whose name is similar to chat title",
+    "Success: bot will NOT try to find accounts whose name is similar to chat title",
   )
-  |> result.try(fn(_) {
-    reply(ctx, case new_state {
-      False ->
-        "Success: bot will NOT try to find accounts whose name is similar to chat title"
-      True ->
-        "Success: bot will try to find accounts whose name is similar to chat title"
-    })
-  })
-  |> result.try(fn(_) { Ok(ctx) })
 }
 
 pub fn checker(

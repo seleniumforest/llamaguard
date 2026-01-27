@@ -5,33 +5,21 @@ import gleam/option
 import gleam/result
 import gleam/string
 import infra/alias.{type BotContext}
+import infra/helpers
 import infra/log
-import infra/reply.{reply}
-import infra/storage
 import models/error.{type BotError}
-import sqlight
 import telega/api
 import telega/model/types.{BanChatMemberParameters, Int}
 import telega/update.{type Command, type Update}
 
 pub fn command(ctx: BotContext, _cmd: Command) -> Result(BotContext, BotError) {
-  let current_state = ctx.session.chat_settings.check_female_name
-  let new_state = !current_state
-
-  storage.set_chat_property(
-    ctx.session.db,
-    ctx.update.chat_id,
+  helpers.flip_bool_setting_and_reply(
+    ctx,
     "check_female_name",
-    sqlight.bool(new_state),
+    fn(cs) { cs.check_female_name },
+    "Success: bot will kick joining accounts with ENG/RU female name",
+    "Success: bot will NOT kick joining accounts with ENG/RU female name",
   )
-  |> result.try(fn(_) {
-    reply(ctx, case new_state {
-      False ->
-        "Success: bot will NOT kick joining accounts with ENG/RU female name"
-      True -> "Success: bot will kick joining accounts with ENG/RU female name"
-    })
-  })
-  |> result.try(fn(_) { Ok(ctx) })
 }
 
 pub fn checker(

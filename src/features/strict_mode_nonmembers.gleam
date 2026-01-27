@@ -6,33 +6,21 @@ import gleam/regexp
 import gleam/result
 import gleam/string
 import infra/alias.{type BotContext}
+import infra/helpers
 import infra/log
-import infra/reply.{reply}
-import infra/storage
 import models/error.{type BotError}
-import sqlight
 import telega/api
 import telega/model/types.{GetChatMemberParameters, Int}
 import telega/update.{type Command, type Update}
 
 pub fn command(ctx: BotContext, _cmd: Command) -> Result(BotContext, BotError) {
-  let current_state = ctx.session.chat_settings.strict_mode_nonmembers
-  let new_state = !current_state
-
-  storage.set_chat_property(
-    ctx.session.db,
-    ctx.update.chat_id,
+  helpers.flip_bool_setting_and_reply(
+    ctx,
     "strict_mode_nonmembers",
-    sqlight.bool(new_state),
+    fn(cs) { cs.strict_mode_nonmembers },
+    "Success: strict mode (no media, links, reactions, female name) for non-members enabled",
+    "Success: strict mode for non-members disabled",
   )
-  |> result.try(fn(_) {
-    reply(ctx, case new_state {
-      False -> "Success: strict mode for non-members disabled"
-      True ->
-        "Success: strict mode (no media, links, reactions, female name) for non-members enabled"
-    })
-  })
-  |> result.try(fn(_) { Ok(ctx) })
 }
 
 pub fn checker(

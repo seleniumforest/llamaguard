@@ -7,6 +7,7 @@ import gleam/result
 import gleam/set
 import gleam/string
 import infra/alias.{type BotContext}
+import infra/helpers
 import infra/log
 import infra/reply.{reply}
 import infra/storage
@@ -18,22 +19,13 @@ import telega/update.{type Command, type Update}
 
 // Toggle check_banned_words on/off
 pub fn command(ctx: BotContext, _cmd: Command) -> Result(BotContext, BotError) {
-  let current_state = ctx.session.chat_settings.check_banned_words
-  let new_state = !current_state
-
-  storage.set_chat_property_list(
-    ctx.session.db,
-    ctx.update.chat_id,
+  helpers.flip_bool_setting_and_reply(
+    ctx,
     "check_banned_words",
-    sqlight.bool(new_state),
+    fn(cs) { cs.check_banned_words },
+    "Success: bot will ban users for banned words",
+    "Success: bot will NOT ban users for banned words",
   )
-  |> result.try(fn(_) {
-    reply(ctx, case new_state {
-      False -> "Success: bot will NOT ban users for banned words"
-      True -> "Success: bot will ban users for banned words"
-    })
-  })
-  |> result.try(fn(_) { Ok(ctx) })
 }
 
 // Add a banned word
