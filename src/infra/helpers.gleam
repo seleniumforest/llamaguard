@@ -1,10 +1,13 @@
+import gleam/option
 import gleam/result
 import infra/alias.{type BotContext}
+import infra/log
 import infra/reply.{reply}
 import infra/storage
 import models/chat_settings
 import models/error.{type BotError}
 import sqlight
+import telega/model/types
 
 pub fn flip_bool_setting_and_reply(
   ctx: BotContext,
@@ -29,4 +32,18 @@ pub fn flip_bool_setting_and_reply(
     })
   })
   |> result.try(fn(_) { Ok(ctx) })
+}
+
+pub fn get_fullname(user: types.User) {
+  case user.last_name {
+    option.None -> user.first_name
+    option.Some(ln) -> log.format("{0} {1}", [user.first_name, ln])
+  }
+}
+
+pub fn try_get_fullname(user: option.Option(types.User)) {
+  case user {
+    option.None -> ""
+    option.Some(u) -> get_fullname(u)
+  }
 }

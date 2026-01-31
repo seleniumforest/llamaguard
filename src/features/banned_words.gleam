@@ -144,9 +144,16 @@ pub fn checker(
     | update.VoiceUpdate(from_id:, chat_id:, message:, ..) -> {
       let text = message.text |> option.unwrap("")
       let caption = message.caption |> option.unwrap("")
+      let full_name = helpers.try_get_fullname(message.from)
+      let sender_chat_title =
+        message.sender_chat
+        |> option.then(fn(x) { x.title })
+        |> option.unwrap("")
 
       let contains_banned =
-        string.lowercase(text <> " " <> caption)
+        [text, caption, full_name, sender_chat_title]
+        |> string.join(" ")
+        |> string.lowercase()
         |> string.split(" ")
         |> list.filter(fn(x) { !string.is_empty(x) })
         |> set.from_list
@@ -155,7 +162,7 @@ pub fn checker(
 
       use <- bool.lazy_guard(!contains_banned, fn() { next(ctx, upd) })
 
-      log.printf("Ban user id: {0} reason: banned word in message", [
+      log.printf("Ban user id: {0} reason: banned word in message or name", [
         from_id |> int.to_string,
       ])
 
