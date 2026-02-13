@@ -58,16 +58,19 @@ pub fn checker(
           types.ChatMemberLeftChatMember(member) -> {
             let restricted = has_restricted_content(message)
             let suspicious = has_suspicious_profile(ctx, member)
+            let is_from_chat = message.sender_chat |> option.is_some
 
-            use <- bool.lazy_guard(!restricted && !suspicious, fn() {
-              Ok(next(ctx, upd))
-            })
+            use <- bool.lazy_guard(
+              !restricted && !suspicious && !is_from_chat,
+              fn() { Ok(next(ctx, upd)) },
+            )
 
-            let reason = case restricted, suspicious {
-              True, True -> "restricted and suspicious profile"
-              True, False -> "restricted"
-              False, True -> "suspicious profile"
-              _, _ -> ""
+            let reason = case restricted, suspicious, is_from_chat {
+              _, _, True -> "writing from chat"
+              True, True, _ -> "restricted and suspicious profile"
+              True, False, _ -> "restricted"
+              False, True, _ -> "suspicious profile"
+              _, _, _ -> ""
             }
 
             log.printf("Delete message from: {0} {1} id: {2} reason: {3}", [
@@ -77,7 +80,6 @@ pub fn checker(
               reason,
             ])
 
-            //todo change to ban user/channel
             api.delete_message(
               ctx.config.api_client,
               types.DeleteMessageParameters(
@@ -85,6 +87,19 @@ pub fn checker(
                 message_id: message.message_id,
               ),
             )
+            |> result.try(fn(_) {
+              case message.sender_chat {
+                option.None -> Ok(True)
+                option.Some(sc) ->
+                  api.ban_chat_sender_chat(
+                    ctx.config.api_client,
+                    types.BanChatSenderChatParameters(
+                      chat_id: Int(upd.chat_id),
+                      sender_chat_id: sc.id,
+                    ),
+                  )
+              }
+            })
             |> result.map(fn(_) { Nil })
           }
           _ -> Ok(next(ctx, upd))

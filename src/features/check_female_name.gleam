@@ -65,7 +65,6 @@ pub fn checker(
         }
         _ -> next(ctx, upd)
       }
-      //next(ctx, upd)
     }
     _, _ -> next(ctx, upd)
   }

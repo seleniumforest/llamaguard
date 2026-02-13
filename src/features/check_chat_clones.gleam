@@ -66,22 +66,22 @@ pub fn checker(
                 ],
               )
 
-              let _ =
-                api.delete_message(
-                  ctx.config.api_client,
-                  types.DeleteMessageParameters(
-                    chat_id: Int(message.chat.id),
-                    message_id: message.message_id,
-                  ),
-                )
-
-              api.ban_chat_sender_chat(
+              api.delete_message(
                 ctx.config.api_client,
-                types.BanChatSenderChatParameters(
-                  chat_id: Int(upd.chat_id),
-                  sender_chat_id: sc.id,
+                types.DeleteMessageParameters(
+                  chat_id: Int(message.chat.id),
+                  message_id: message.message_id,
                 ),
               )
+              |> result.try(fn(_) {
+                api.ban_chat_sender_chat(
+                  ctx.config.api_client,
+                  types.BanChatSenderChatParameters(
+                    chat_id: Int(upd.chat_id),
+                    sender_chat_id: sc.id,
+                  ),
+                )
+              })
               |> result.try(fn(_) { Ok(Some(Nil)) })
               |> result.lazy_unwrap(fn() { Some(next(ctx, upd)) })
             }

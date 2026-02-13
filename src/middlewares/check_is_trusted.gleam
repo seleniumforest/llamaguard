@@ -12,6 +12,8 @@ pub fn check_is_trusted() {
         update.MessageUpdate(from_id:, message:, ..)
         | update.AudioUpdate(from_id:, message:, ..)
         | update.TextUpdate(from_id:, message:, ..)
+        | update.VideoUpdate(from_id:, message:, ..)
+        | update.VoiceUpdate(from_id:, message:, ..)
         | update.PhotoUpdate(from_id:, message:, ..)
         | update.EditedMessageUpdate(from_id:, message:, ..) -> {
           let id_to_match = from_id |> int.to_string
@@ -26,7 +28,6 @@ pub fn check_is_trusted() {
             |> list.any(fn(x) {
               match_ids(x, id_to_match) || match_ids(x, username_to_match)
             })
-          echo is_trusted
 
           case is_trusted {
             False -> next(ctx, upd)
