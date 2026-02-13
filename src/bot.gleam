@@ -7,6 +7,7 @@ import features/help
 import features/kick_new_accounts
 import features/list_settings
 import features/strict_mode_nonmembers
+import features/trust_user
 import gleam/erlang/process
 import gleam/option
 import gleam/string
@@ -14,6 +15,7 @@ import infra/alias.{type BotContext}
 import infra/log
 import infra/storage
 import middlewares/check_is_admin.{check_is_admin}
+import middlewares/check_is_trusted.{check_is_trusted}
 import middlewares/extract_message_id.{extract_message_id}
 import middlewares/inject_chat_settings.{inject_chat_settings}
 import middlewares/resources.{inject_resources}
@@ -36,11 +38,13 @@ pub fn main() {
     |> router.use_middleware(inject_chat_settings(db))
     |> router.use_middleware(inject_resources(resources))
     |> router.use_middleware(extract_message_id())
+    |> router.use_middleware(check_is_trusted())
     |> router.on_custom(fn(_) { True }, handle_update)
     |> router.on_command("kickNewAccounts", kick_new_accounts.command)
     |> router.on_command("checkChatClones", check_chat_clones.command)
     |> router.on_command("checkFemaleName", check_female_name.command)
     |> router.on_command("strictModeNonMembers", strict_mode_nonmembers.command)
+    |> router.on_command("trust", trust_user.command)
     |> router.on_command("checkBannedWords", banned_words.command)
     |> router.on_command("addBanWord", banned_words.add_word_command)
     |> router.on_command("removeBanWord", banned_words.remove_word_command)

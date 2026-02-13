@@ -13,7 +13,8 @@ pub fn inject_chat_settings(db) {
   fn(handler) {
     fn(ctx: alias.BotContext, update: update.Update) {
       let chat =
-        result.try_recover(storage.get_chat(db, ctx.update.chat_id), fn(err) {
+        storage.get_chat(db, ctx.update.chat_id)
+        |> result.try_recover(fn(err) {
           case err {
             error.EmptyDataError -> {
               log.printf("Creating chat settings for new key {0}", [

@@ -7,11 +7,11 @@ import telega/bot
 import telega/update
 
 pub fn inject_resources(resources: bot_session.Resources) {
-  fn(handler) {
+  fn(next) {
     fn(ctx: alias.BotContext, update: update.Update) {
       let session = bot_session.BotSession(..ctx.session, resources:)
       let modified_ctx = bot.Context(..ctx, session:)
-      handler(modified_ctx, update)
+      next(modified_ctx, update)
     }
   }
 }

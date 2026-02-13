@@ -70,13 +70,14 @@ pub fn checker(
               _, _ -> ""
             }
 
-            log.printf("Ban user: {0} {1} id: {2} reason: {3}", [
+            log.printf("Delete message from: {0} {1} id: {2} reason: {3}", [
               member.user.first_name,
               member.user.last_name |> option.unwrap(""),
               member.user.id |> int.to_string,
               reason,
             ])
 
+            //todo change to ban user/channel
             api.delete_message(
               ctx.config.api_client,
               types.DeleteMessageParameters(

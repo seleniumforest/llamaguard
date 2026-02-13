@@ -5,7 +5,7 @@ import telega/bot
 import telega/update
 
 pub fn extract_message_id() {
-  fn(handler) {
+  fn(next) {
     fn(ctx: BotContext, update: update.Update) {
       let message_id: option.Option(Int) = case update {
         update.AudioUpdate(message:, ..)
@@ -27,7 +27,7 @@ pub fn extract_message_id() {
 
       let session = BotSession(..ctx.session, message_id:)
       let modified_ctx = bot.Context(..ctx, session:)
-      handler(modified_ctx, update)
+      next(modified_ctx, update)
     }
   }
 }

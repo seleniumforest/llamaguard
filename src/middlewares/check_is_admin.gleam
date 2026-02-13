@@ -8,7 +8,7 @@ import telega/model/types.{GetChatAdministratorsParameters, Int}
 import telega/update
 
 pub fn check_is_admin() {
-  fn(handler) {
+  fn(next) {
     fn(ctx: BotContext, upd: update.Update) {
       case upd {
         update.CommandUpdate(message:, ..) -> {
@@ -34,10 +34,10 @@ pub fn check_is_admin() {
 
           case continue_as_admin {
             False -> Ok(ctx)
-            True -> handler(ctx, upd)
+            True -> next(ctx, upd)
           }
         }
-        _ -> handler(ctx, upd)
+        _ -> next(ctx, upd)
       }
     }
   }

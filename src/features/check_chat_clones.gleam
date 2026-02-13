@@ -58,10 +58,13 @@ pub fn checker(
           case compare_result {
             False -> Some(next(ctx, upd))
             True -> {
-              log.printf("Delete message from {0} id {1} reason: chat clone", [
-                sender_chat_title,
-                sc.id |> int.to_string,
-              ])
+              log.printf(
+                "Delete message and ban user {0} id {1} reason: chat clone",
+                [
+                  sender_chat_title,
+                  sc.id |> int.to_string,
+                ],
+              )
 
               let _ =
                 api.delete_message(

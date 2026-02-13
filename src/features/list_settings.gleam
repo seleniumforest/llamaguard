@@ -14,6 +14,11 @@ pub fn command(ctx: BotContext, _cmd: Command) -> Result(BotContext, BotError) {
     True -> "No banned words configured"
   }
 
+  let trusted_users = case s.trusted_users |> list.is_empty {
+    False -> s.trusted_users |> string.join(", ")
+    True -> "No trusted users configured"
+  }
+
   let msg =
     log.format(
       "Current settings:\n
@@ -23,6 +28,7 @@ pub fn command(ctx: BotContext, _cmd: Command) -> Result(BotContext, BotError) {
 /checkFemaleName : {3}
 /checkBannedWords: {4}
 Banned words: {5}
+Trusted users: {6}
 ",
       [
         s.kick_new_accounts |> string.inspect,
@@ -31,6 +37,7 @@ Banned words: {5}
         s.check_female_name |> string.inspect,
         s.check_banned_words |> string.inspect,
         words,
+        trusted_users,
       ],
     )
 

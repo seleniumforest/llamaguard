@@ -11,6 +11,7 @@ pub type ChatSettings {
     check_female_name: Bool,
     check_banned_words: Bool,
     banned_words: List(String),
+    trusted_users: List(String),
   )
 }
 
@@ -23,6 +24,7 @@ pub fn default() {
     check_female_name: False,
     check_banned_words: False,
     banned_words: [],
+    trusted_users: [],
   )
 }
 
@@ -38,6 +40,7 @@ pub fn chat_encoder(chat: ChatSettings) {
     #("no_links", bool_as_int_encoder(chat.no_links)),
     #("check_banned_words", bool_as_int_encoder(chat.check_banned_words)),
     #("banned_words", json.array(chat.banned_words, json.string)),
+    #("trusted_users", json.array(chat.trusted_users, json.string)),
   ])
 }
 
@@ -106,6 +109,13 @@ pub fn chat_decoder() {
     decode.list(decode.string),
   )
 
+  //trusted users
+  use trusted_users <- decode.optional_field(
+    "trusted_users",
+    [],
+    decode.list(decode.string),
+  )
+
   decode.success(ChatSettings(
     kick_new_accounts:,
     no_links:,
@@ -114,5 +124,6 @@ pub fn chat_decoder() {
     check_female_name:,
     check_banned_words:,
     banned_words:,
+    trusted_users:,
   ))
 }
