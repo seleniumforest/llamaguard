@@ -30,7 +30,7 @@ pub fn inject_chat_settings(db) {
       case chat {
         Error(e) -> {
           log.printf_err(
-            "ERROR: Could not get chat settings for chat {0} err: {1} Processing with default handler. This is NOT normal behaviour",
+            "ERROR: Could not get chat settings for chat {0} err: {1} Processing with default chat settings. This is NOT normal behaviour",
             [ctx.key, e |> string.inspect],
           )
 

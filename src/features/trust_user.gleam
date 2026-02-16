@@ -1,6 +1,5 @@
 import gleam/bool
 import gleam/int
-import gleam/json
 import gleam/list
 import gleam/option
 import gleam/result
@@ -9,9 +8,8 @@ import infra/args
 import infra/helpers.{match_ids}
 import infra/log
 import infra/reply.{reply}
-import infra/storage
+import infra/storage.{Array, String}
 import models/error.{type BotError, GenericError}
-import sqlight
 import telega/model/types
 import telega/update.{type Command}
 
@@ -85,17 +83,13 @@ fn process_id(ctx: BotContext, id: String) {
         |> list.filter(fn(x) { match_ids(x, id) |> bool.negate })
     }
     |> list.unique
-  let json_value =
-    new_trusted_users
-    |> json.array(of: json.string)
-    |> json.to_string
-    |> sqlight.text
+    |> list.map(fn(x) { String(x) })
 
-  storage.set_chat_property_list(
+  storage.save_chat_property(
     ctx.session.db,
     ctx.update.chat_id,
     "trusted_users",
-    json_value,
+    Array(new_trusted_users),
   )
   |> result.try(fn(_) {
     let msg = case already_exists {

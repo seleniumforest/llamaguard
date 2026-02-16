@@ -1,6 +1,5 @@
 import gleam/bool
 import gleam/int
-import gleam/json
 import gleam/list
 import gleam/option
 import gleam/result
@@ -10,9 +9,8 @@ import infra/alias.{type BotContext}
 import infra/helpers
 import infra/log
 import infra/reply.{reply}
-import infra/storage
+import infra/storage.{Array, String}
 import models/error.{type BotError}
-import sqlight
 import telega/api
 import telega/model/types.{BanChatMemberParameters, DeleteMessageParameters, Int}
 import telega/update.{type Command, type Update}
@@ -49,17 +47,11 @@ pub fn add_word_command(
         list.append(current_words, words_to_add)
         |> list.unique
 
-      let json_value =
-        new_words
-        |> json.array(of: json.string)
-        |> json.to_string
-        |> sqlight.text
-
-      storage.set_chat_property_list(
+      storage.save_chat_property(
         ctx.session.db,
         ctx.update.chat_id,
         "banned_words",
-        json_value,
+        Array(new_words |> list.map(fn(x) { String(x) })),
       )
       |> result.try(fn(_) {
         reply(
@@ -95,18 +87,13 @@ pub fn remove_word_command(
       let new_words =
         current_words
         |> list.filter(fn(w) { !list.contains(words_to_remove, w) })
+        |> list.map(fn(x) { String(x) })
 
-      let json_value =
-        new_words
-        |> json.array(of: json.string)
-        |> json.to_string
-        |> sqlight.text
-
-      storage.set_chat_property_list(
+      storage.save_chat_property(
         ctx.session.db,
         ctx.update.chat_id,
         "banned_words",
-        json_value,
+        Array(new_words),
       )
       |> result.try(fn(_) {
         reply(

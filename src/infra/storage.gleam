@@ -12,13 +12,23 @@ import sqlight
 pub type StorageMessage {
   GetChat(reply_with: Subject(Result(ChatSettings, BotError)), id: Int)
   CreateChat(reply_with: Subject(Result(ChatSettings, BotError)), id: Int)
-  SetChatProperty(
+  SaveChatProperty(
     reply_with: Subject(Result(Bool, BotError)),
     id: Int,
     prop: String,
-    val: sqlight.Value,
-    as_list: Bool,
+    val: JsonDbValue,
   )
+}
+
+pub type ValueType {
+  Int(val: Int)
+  Bool(val: Bool)
+  String(val: String)
+}
+
+pub type JsonDbValue {
+  Value(val: ValueType)
+  Array(val: List(ValueType))
 }
 
 pub fn init() -> Subject(StorageMessage) {
@@ -40,27 +50,43 @@ pub fn get_chat(actor: Subject(StorageMessage), id: Int) {
   process.call_forever(actor, fn(a) { GetChat(a, id) })
 }
 
-pub fn set_chat_property(
+pub fn save_chat_property(
   actor: Subject(StorageMessage),
   id: Int,
   prop: String,
-  val: sqlight.Value,
+  val: JsonDbValue,
 ) {
-  process.call_forever(actor, fn(a) { SetChatProperty(a, id, prop, val, False) })
-}
-
-pub fn set_chat_property_list(
-  actor: Subject(StorageMessage),
-  id: Int,
-  prop: String,
-  val: sqlight.Value,
-) {
-  process.call_forever(actor, fn(a) { SetChatProperty(a, id, prop, val, True) })
+  process.call_forever(actor, fn(a) { SaveChatProperty(a, id, prop, val) })
 }
 
 fn string_decoder() {
   use id <- decode.field(0, decode.string)
   decode.success(id)
+}
+
+fn sqlize_val(val: ValueType) -> sqlight.Value {
+  case val {
+    Bool(val:) -> sqlight.bool(val)
+    Int(val:) -> sqlight.int(val)
+    String(val:) -> sqlight.text(val)
+  }
+}
+
+fn sqlize_list(ls: List(ValueType)) -> sqlight.Value {
+  case ls {
+    [] -> sqlight.text("[]")
+    _ -> {
+      json.array(ls, fn(x) {
+        case x {
+          Bool(val:) -> json.bool(val)
+          Int(val:) -> json.int(val)
+          String(val:) -> json.string(val)
+        }
+      })
+      |> json.to_string
+      |> sqlight.text
+    }
+  }
 }
 
 fn handle_message(
@@ -81,14 +107,22 @@ fn handle_message(
       actor.continue(connection)
     }
 
-    SetChatProperty(reply_with:, id:, prop:, val:, as_list:) -> {
-      let sql = case as_list {
-        True -> "UPDATE chats 
+    SaveChatProperty(reply_with:, id:, prop:, val:) -> {
+      let #(val, sql) = case val {
+        Array(vals) -> {
+          let sql = "UPDATE chats 
             SET data = json_set(data, '$." <> prop <> "', json(?)) 
             WHERE chat_id = ?;"
-        False -> "UPDATE chats 
+          echo sqlize_list(vals)
+          #(sqlize_list(vals), sql)
+        }
+        Value(val) -> {
+          let sql = "UPDATE chats 
             SET data = json_set(data, '$." <> prop <> "', ?) 
             WHERE chat_id = ?;"
+
+          #(sqlize_val(val), sql)
+        }
       }
 
       let query =
@@ -140,6 +174,7 @@ fn unwrap_query_to_settings(
       case list.first(ls) {
         Error(_) -> process.send(reply_with, Error(EmptyDataError))
         Ok(json) -> {
+          echo json
           case json.parse(from: json, using: ch.chat_decoder()) {
             Error(e) -> process.send(reply_with, Error(InvalidValueError(e)))
             Ok(obj) -> {

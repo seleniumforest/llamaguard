@@ -7,9 +7,8 @@ import gleam/string
 import infra/alias.{type BotContext}
 import infra/log
 import infra/reply.{reply, replyf}
-import infra/storage
+import infra/storage.{Value}
 import models/error.{type BotError}
-import sqlight
 import telega/api
 import telega/model/types.{BanChatMemberParameters, Int}
 import telega/update.{type Command, type Update, ChatMemberUpdate}
@@ -52,11 +51,11 @@ pub fn command(ctx: BotContext, cmd: Command) -> Result(BotContext, BotError) {
 }
 
 fn set_state(ctx: BotContext, current_state: Int, new_state: Int) {
-  storage.set_chat_property(
+  storage.save_chat_property(
     ctx.session.db,
     ctx.update.chat_id,
     "kick_new_accounts",
-    sqlight.int(new_state),
+    Value(storage.Int(new_state)),
   )
   |> result.try(fn(_) {
     case new_state {

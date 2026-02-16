@@ -5,10 +5,9 @@ import gleam/string
 import infra/alias.{type BotContext}
 import infra/log
 import infra/reply.{reply}
-import infra/storage
+import infra/storage.{Bool, Value}
 import models/chat_settings
 import models/error.{type BotError}
-import sqlight
 import telega/model/types
 
 pub fn flip_bool_setting_and_reply(
@@ -21,11 +20,11 @@ pub fn flip_bool_setting_and_reply(
   let current_state = setting_selector(ctx.session.chat_settings)
   let new_state = !current_state
 
-  storage.set_chat_property_list(
+  storage.save_chat_property(
     ctx.session.db,
     ctx.update.chat_id,
     setting_name,
-    sqlight.bool(new_state),
+    Value(Bool(new_state)),
   )
   |> result.try(fn(_) {
     reply(ctx, case new_state {

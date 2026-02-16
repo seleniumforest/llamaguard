@@ -166,7 +166,7 @@ These lists are used by the female-name check feature.
 If you'd like to contribute, please:
 - Fork the repository
 - Create a branch for your feature or fix
-- Ensure you saved dependency structure: (models/middlewares) <- infra <- features <- bot
+- Ensure you saved dependency structure: models <- infra <- features/middlewares <- bot
 - Submit a PR with a clear description and tests/examples where appropriate
 
 ## License

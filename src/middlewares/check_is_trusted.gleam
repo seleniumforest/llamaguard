@@ -21,12 +21,17 @@ pub fn check_is_trusted() {
             message.from
             |> option.map(fn(x) { x.username })
             |> option.flatten
-            |> option.unwrap("")
 
           let is_trusted =
             ctx.session.chat_settings.trusted_users
             |> list.any(fn(x) {
-              match_ids(x, id_to_match) || match_ids(x, username_to_match)
+              let match_by_id = match_ids(x, id_to_match)
+              let match_by_username = case username_to_match {
+                option.None -> False
+                option.Some(u) -> match_ids(x, "@" <> u)
+              }
+
+              match_by_id || match_by_username
             })
 
           case is_trusted {
