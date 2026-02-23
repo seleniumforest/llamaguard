@@ -113,7 +113,6 @@ fn handle_message(
           let sql = "UPDATE chats 
             SET data = json_set(data, '$." <> prop <> "', json(?)) 
             WHERE chat_id = ?;"
-          echo sqlize_list(vals)
           #(sqlize_list(vals), sql)
         }
         Value(val) -> {
@@ -174,7 +173,7 @@ fn unwrap_query_to_settings(
       case list.first(ls) {
         Error(_) -> process.send(reply_with, Error(EmptyDataError))
         Ok(json) -> {
-          echo json
+          //echo json
           case json.parse(from: json, using: ch.chat_decoder()) {
             Error(e) -> process.send(reply_with, Error(InvalidValueError(e)))
             Ok(obj) -> {
@@ -190,10 +189,19 @@ fn unwrap_query_to_settings(
 fn init_db() {
   let assert Ok(conn) = sqlight.open("file:data.sqlite3")
 
-  let sql =
+  let create_chats =
     "CREATE TABLE IF NOT EXISTS chats (
-    chat_id INTEGER PRIMARY KEY,
-    data JSON NULL);"
-  let assert Ok(Nil) = sqlight.exec(sql, conn)
+      chat_id INTEGER PRIMARY KEY,
+      data JSON NULL);"
+  let assert Ok(Nil) = sqlight.exec(create_chats, conn)
+
+  // let create_users_chats =
+  //   "CREATE TABLE user_chats (
+  //     user_id INTEGER NOT NULL,
+  //     chat_id INTEGER NOT NULL,
+  //     PRIMARY KEY (user_id, chat_id)
+  //   ) WITHOUT ROWID;
+  //   CREATE INDEX idx_chat_lookup ON user_chats (chat_id, user_id);"
+  // let assert Ok(Nil) = sqlight.exec(create_users_chats, conn)
   conn
 }

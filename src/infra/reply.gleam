@@ -4,7 +4,7 @@ import infra/alias.{type BotContext}
 import infra/log
 import models/error
 import telega/api
-import telega/model/types.{ReplyParameters, SendMessageParameters, Str}
+import telega/model/types.{ReplyParameters, SendMessageParameters}
 
 pub fn replyf(
   ctx: BotContext,
@@ -27,7 +27,7 @@ pub fn reply(
         ctx.config.api_client,
         parameters: SendMessageParameters(
           text:,
-          chat_id: Str(ctx.key),
+          chat_id: types.Int(ctx.update.chat_id),
           business_connection_id: None,
           message_thread_id: None,
           parse_mode: None,

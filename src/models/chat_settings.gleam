@@ -1,5 +1,6 @@
 import gleam/dynamic/decode
 import gleam/json
+import gleam/option
 import models/error
 
 pub type ChatSettings {
@@ -12,6 +13,8 @@ pub type ChatSettings {
     check_banned_words: Bool,
     banned_words: List(String),
     trusted_users: List(String),
+    admins_id_list: option.Option(List(Int)),
+    admins_last_upd: Int,
   )
 }
 
@@ -25,6 +28,8 @@ pub fn default() {
     check_banned_words: False,
     banned_words: [],
     trusted_users: [],
+    admins_id_list: option.None,
+    admins_last_upd: 0,
   )
 }
 
@@ -60,61 +65,16 @@ fn int_to_bool(int: Int) {
 }
 
 pub fn chat_decoder() {
-  use kick_new_accounts <- decode.optional_field(
-    "kick_new_accounts",
-    0,
-    decode.int,
-  )
-
-  //strict_mode_nonmembers
-  use strict_mode_nonmembers <- decode.optional_field(
-    "strict_mode_nonmembers",
-    0,
-    decode.int,
-  )
-  let assert Ok(strict_mode_nonmembers) = int_to_bool(strict_mode_nonmembers)
-
-  //check_chat_clones
-  use check_chat_clones <- decode.optional_field(
-    "check_chat_clones",
-    0,
-    decode.int,
-  )
-  let assert Ok(check_chat_clones) = int_to_bool(check_chat_clones)
-
-  //check_female_name
-  use check_female_name <- decode.optional_field(
-    "check_female_name",
-    0,
-    decode.int,
-  )
-  let assert Ok(check_female_name) = int_to_bool(check_female_name)
-
-  //no_links
-  use no_links <- decode.optional_field("no_links", 0, decode.int)
-  let assert Ok(no_links) = int_to_bool(no_links)
-
-  //check_banned_words
-  use check_banned_words <- decode.optional_field(
-    "check_banned_words",
-    0,
-    decode.int,
-  )
-  let assert Ok(check_banned_words) = int_to_bool(check_banned_words)
-
-  //banned_words
-  use banned_words <- decode.optional_field(
-    "banned_words",
-    [],
-    decode.list(decode.string),
-  )
-
-  //trusted users
-  use trusted_users <- decode.optional_field(
-    "trusted_users",
-    [],
-    decode.list(decode.string),
-  )
+  use kick_new_accounts <- int_field("kick_new_accounts")
+  use strict_mode_nonmembers <- bool_field("strict_mode_nonmembers")
+  use check_chat_clones <- bool_field("check_chat_clones")
+  use check_female_name <- bool_field("check_female_name")
+  use no_links <- bool_field("no_links")
+  use check_banned_words <- bool_field("check_banned_words")
+  use banned_words <- string_list_field("banned_words")
+  use trusted_users <- string_list_field("trusted_users")
+  use admins_id_list <- int_list_field("admins_id_list")
+  use admins_last_upd <- int_field("admins_last_upd")
 
   decode.success(ChatSettings(
     kick_new_accounts:,
@@ -125,5 +85,40 @@ pub fn chat_decoder() {
     check_banned_words:,
     banned_words:,
     trusted_users:,
+    admins_id_list: option.Some(admins_id_list),
+    admins_last_upd:,
   ))
+}
+
+fn int_field(
+  name: String,
+  next: fn(Int) -> decode.Decoder(a),
+) -> decode.Decoder(a) {
+  use val <- decode.optional_field(name, 0, decode.int)
+  next(val)
+}
+
+fn bool_field(
+  name: String,
+  next: fn(Bool) -> decode.Decoder(a),
+) -> decode.Decoder(a) {
+  use val <- decode.optional_field(name, 0, decode.int)
+  let assert Ok(bool_val) = int_to_bool(val)
+  next(bool_val)
+}
+
+fn string_list_field(
+  name: String,
+  next: fn(List(String)) -> decode.Decoder(a),
+) -> decode.Decoder(a) {
+  use val <- decode.optional_field(name, [], decode.list(decode.string))
+  next(val)
+}
+
+fn int_list_field(
+  name: String,
+  next: fn(List(Int)) -> decode.Decoder(a),
+) -> decode.Decoder(a) {
+  use val <- decode.optional_field(name, [], decode.list(decode.int))
+  next(val)
 }

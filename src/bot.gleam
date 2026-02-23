@@ -15,7 +15,6 @@ import infra/alias.{type BotContext}
 import infra/log
 import infra/storage
 import middlewares/check_is_admin.{check_is_admin}
-import middlewares/check_is_trusted.{check_is_trusted}
 import middlewares/extract_message_id.{extract_message_id}
 import middlewares/inject_chat_settings.{inject_chat_settings}
 import middlewares/resources.{inject_resources}
@@ -34,11 +33,10 @@ pub fn main() {
 
   let router =
     router.new("default")
-    |> router.use_middleware(check_is_admin())
     |> router.use_middleware(inject_chat_settings(db))
     |> router.use_middleware(inject_resources(resources))
     |> router.use_middleware(extract_message_id())
-    |> router.use_middleware(check_is_trusted())
+    |> router.use_middleware(check_is_admin())
     |> router.on_custom(fn(_) { True }, handle_update)
     |> router.on_command("kickNewAccounts", kick_new_accounts.command)
     |> router.on_command("checkChatClones", check_chat_clones.command)
@@ -79,7 +77,7 @@ pub fn main() {
         "edited_message",
         "channel_post",
         "edited_channel_post",
-        //"message_reaction",
+        "message_reaction",
         "inline_query",
         "chosen_inline_result",
         "chat_member",
@@ -92,11 +90,12 @@ pub fn main() {
 
 fn handle_update(ctx: BotContext, upd: Update) -> Result(BotContext, BotError) {
   process.spawn_unlinked(fn() {
+    use ctx, upd <- trust_user.checker(ctx, upd)
     use ctx, upd <- kick_new_accounts.checker(ctx, upd)
-    use ctx, upd <- strict_mode_nonmembers.checker(ctx, upd)
     use ctx, upd <- check_chat_clones.checker(ctx, upd)
     use ctx, upd <- check_female_name.checker(ctx, upd)
-    use _ctx, _upd <- banned_words.checker(ctx, upd)
+    use ctx, upd <- banned_words.checker(ctx, upd)
+    use _ctx, _upd <- strict_mode_nonmembers.checker(ctx, upd)
     Nil
   })
   Ok(ctx)

@@ -47,3 +47,4 @@ gleeunit = { version = ">= 1.0.0 and < 2.0.0" }
 simplifile = { version = ">= 2.3.2 and < 3.0.0" }
 sqlight = { version = ">= 1.0.3 and < 2.0.0" }
 telega = { version = ">= 0.14.0 and < 1.0.0" }
+gleam_time = { version = ">= 1.7.0 and < 2.0.0" }

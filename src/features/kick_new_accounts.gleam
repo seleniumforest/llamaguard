@@ -37,7 +37,7 @@ pub fn command(ctx: BotContext, cmd: Command) -> Result(BotContext, BotError) {
           let new_state = 0
           set_state(ctx, current_state, new_state)
         }
-        _, _ -> reply(ctx, "Error: please enter valid argument")
+        _, _ -> reply(ctx, "Usage: /kickNewAccounts <id_to_kick>")
       }
     }
     Ok(num) -> {

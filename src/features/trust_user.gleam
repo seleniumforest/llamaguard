@@ -99,3 +99,46 @@ fn process_id(ctx: BotContext, id: String) {
     reply(ctx, log.format(msg, [id]))
   })
 }
+
+pub fn checker(
+  ctx: BotContext,
+  upd: update.Update,
+  next: fn(BotContext, update.Update) -> Nil,
+) -> Nil {
+  case upd {
+    update.MessageUpdate(from_id:, message:, ..)
+    | update.AudioUpdate(from_id:, message:, ..)
+    | update.TextUpdate(from_id:, message:, ..)
+    | update.VideoUpdate(from_id:, message:, ..)
+    | update.VoiceUpdate(from_id:, message:, ..)
+    | update.PhotoUpdate(from_id:, message:, ..)
+    | update.EditedMessageUpdate(from_id:, message:, ..) -> {
+      let id_to_match = from_id |> int.to_string
+      let username_to_match = case message.sender_chat {
+        option.Some(sc) -> sc.username
+        option.None ->
+          message.from
+          |> option.map(fn(x) { x.username })
+          |> option.flatten
+      }
+
+      let is_trusted =
+        ctx.session.chat_settings.trusted_users
+        |> list.any(fn(x) {
+          let match_by_id = match_ids(x, id_to_match)
+          let match_by_username = case username_to_match {
+            option.None -> False
+            option.Some(u) -> match_ids(x, "@" <> u)
+          }
+
+          match_by_id || match_by_username
+        })
+
+      case is_trusted {
+        False -> next(ctx, upd)
+        True -> Nil
+      }
+    }
+    _ -> next(ctx, upd)
+  }
+}

@@ -7,7 +7,7 @@ import telega/update
 pub fn extract_message_id() {
   fn(next) {
     fn(ctx: BotContext, update: update.Update) {
-      let message_id: option.Option(Int) = case update {
+      let message_id = case update {
         update.AudioUpdate(message:, ..)
         | update.BusinessMessageUpdate(message:, ..)
         | update.CommandUpdate(message:, ..)

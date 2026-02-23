@@ -54,7 +54,6 @@ pub fn try_get_fullname(user: option.Option(types.User)) {
 // id@username
 // id
 pub fn match_ids(id1: String, id2: String) {
-  log.printf("matching {0} with {1}", [id1, id2])
   use <- bool.guard(id1 == id2, True)
   case string.split_once(id1, "@"), string.split_once(id2, "@") {
     //id and id
