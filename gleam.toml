@@ -22,7 +22,8 @@ gleam_erlang = ">= 1.3.0 and < 2.0.0"
 sqlight = ">= 1.0.3 and < 2.0.0"
 dot_env = ">= 1.2.0 and < 2.0.0"
 gleam_json = ">= 3.1.0 and < 4.0.0"
-telega = ">= 0.14.0 and < 1.0.0"
+telega = { git = "git@github.com:bondiano/telega-gleam.git", ref = "60d23d9dea2928f1ad6f06e0994ec4f0b253aa5d" }
+#telega = ">= 0.14.0 and < 1.0.0"
 #telega = { path = "../telega-gleam/" }
 simplifile = ">= 2.3.2 and < 3.0.0"
 gleam_regexp = ">= 1.1.1 and < 2.0.0"

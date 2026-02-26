@@ -1,16 +1,16 @@
 import gleam/bool
 import gleam/int
 import gleam/list
-import gleam/option
 import gleam/result
 import gleam/string
 import infra/alias.{type BotContext}
+import infra/api_calls
+import infra/helpers
 import infra/log
 import infra/reply.{reply, replyf}
 import infra/storage.{Value}
 import models/error.{type BotError}
-import telega/api
-import telega/model/types.{BanChatMemberParameters, Int}
+import telega/model/types
 import telega/update.{type Command, type Update, ChatMemberUpdate}
 
 pub fn command(ctx: BotContext, cmd: Command) -> Result(BotContext, BotError) {
@@ -83,27 +83,18 @@ pub fn checker(
   let ids_to_delete = ctx.session.chat_settings.kick_new_accounts
 
   case upd, ids_to_delete {
-    ChatMemberUpdate(chat_id:, chat_member_updated:, ..), itd if itd > 0 -> {
+    ChatMemberUpdate(chat_member_updated:, ..), itd if itd > 0 -> {
       case chat_member_updated.new_chat_member {
         types.ChatMemberMemberChatMember(member) -> {
           let needs_ban = member.user.id > ids_to_delete && !member.user.is_bot
           use <- bool.lazy_guard(!needs_ban, fn() { next(ctx, upd) })
 
-          log.printf("Ban user: {0} {1} id: {2} reason: fresh account", [
-            member.user.first_name,
-            member.user.last_name |> option.unwrap(""),
+          log.printf("Ban user: {0} id: {1} reason: fresh account", [
+            helpers.get_fullname(member.user),
             int.to_string(member.user.id),
           ])
 
-          api.ban_chat_member(
-            ctx.config.api_client,
-            parameters: BanChatMemberParameters(
-              chat_id: Int(chat_id),
-              user_id: member.user.id,
-              until_date: option.None,
-              revoke_messages: option.Some(True),
-            ),
-          )
+          api_calls.get_rid_of_user(ctx, member.user.id)
           |> result.map(fn(_) { Nil })
           |> result.lazy_unwrap(fn() { next(ctx, upd) })
         }

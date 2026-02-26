@@ -106,14 +106,12 @@ pub fn checker(
   next: fn(BotContext, update.Update) -> Nil,
 ) -> Nil {
   case upd {
-    update.MessageUpdate(from_id:, message:, ..)
-    | update.AudioUpdate(from_id:, message:, ..)
-    | update.TextUpdate(from_id:, message:, ..)
-    | update.VideoUpdate(from_id:, message:, ..)
-    | update.VoiceUpdate(from_id:, message:, ..)
-    | update.PhotoUpdate(from_id:, message:, ..)
-    | update.EditedMessageUpdate(from_id:, message:, ..) -> {
-      let id_to_match = from_id |> int.to_string
+    update.AudioUpdate(message:, ..)
+    | update.TextUpdate(message:, ..)
+    | update.VideoUpdate(message:, ..)
+    | update.VoiceUpdate(message:, ..)
+    | update.PhotoUpdate(message:, ..)
+    | update.EditedMessageUpdate(message:, ..) -> {
       let username_to_match = case message.sender_chat {
         option.Some(sc) -> sc.username
         option.None ->
@@ -122,23 +120,36 @@ pub fn checker(
           |> option.flatten
       }
 
-      let is_trusted =
-        ctx.session.chat_settings.trusted_users
-        |> list.any(fn(x) {
-          let match_by_id = match_ids(x, id_to_match)
-          let match_by_username = case username_to_match {
-            option.None -> False
-            option.Some(u) -> match_ids(x, "@" <> u)
-          }
-
-          match_by_id || match_by_username
-        })
-
-      case is_trusted {
-        False -> next(ctx, upd)
-        True -> Nil
-      }
+      check_is_trusted(ctx, upd, username_to_match, next)
     }
+    update.ChatMemberUpdate(chat_member_updated:, ..) ->
+      check_is_trusted(ctx, upd, chat_member_updated.from.username, next)
     _ -> next(ctx, upd)
+  }
+}
+
+fn check_is_trusted(
+  ctx: BotContext,
+  upd: update.Update,
+  username: option.Option(String),
+  next: fn(BotContext, update.Update) -> Nil,
+) {
+  let id_to_match = ctx.update.from_id |> int.to_string
+
+  let is_trusted =
+    ctx.session.chat_settings.trusted_users
+    |> list.any(fn(x) {
+      let match_by_id = match_ids(x, id_to_match)
+      let match_by_username = case username {
+        option.None -> False
+        option.Some(u) -> match_ids(x, "@" <> u)
+      }
+
+      match_by_id || match_by_username
+    })
+
+  case is_trusted {
+    False -> next(ctx, upd)
+    True -> Nil
   }
 }

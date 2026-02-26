@@ -5,11 +5,11 @@ import gleam/option
 import gleam/result
 import gleam/string
 import infra/alias.{type BotContext}
+import infra/api_calls
 import infra/helpers
 import infra/log
 import models/error.{type BotError}
-import telega/api
-import telega/model/types.{BanChatMemberParameters, Int}
+import telega/model/types
 import telega/update.{type Command, type Update}
 
 pub fn command(ctx: BotContext, _cmd: Command) -> Result(BotContext, BotError) {
@@ -28,7 +28,7 @@ pub fn checker(
   next: fn(BotContext, Update) -> Nil,
 ) -> Nil {
   case upd, ctx.session.chat_settings.check_female_name {
-    update.ChatMemberUpdate(chat_member_updated:, chat_id:, ..), True -> {
+    update.ChatMemberUpdate(chat_member_updated:, ..), True -> {
       case chat_member_updated.new_chat_member {
         types.ChatMemberMemberChatMember(member) -> {
           let first = member.user.first_name |> normalize
@@ -51,15 +51,7 @@ pub fn checker(
             int.to_string(member.user.id),
           ])
 
-          api.ban_chat_member(
-            ctx.config.api_client,
-            parameters: BanChatMemberParameters(
-              chat_id: Int(chat_id),
-              user_id: member.user.id,
-              until_date: option.None,
-              revoke_messages: option.Some(True),
-            ),
-          )
+          api_calls.get_rid_of_user(ctx, member.user.id)
           |> result.try(fn(_) { Ok(Nil) })
           |> result.lazy_unwrap(fn() { next(ctx, upd) })
         }

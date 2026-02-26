@@ -115,7 +115,6 @@ fn handle_reaction(
   message_reaction_updated: types.MessageReactionUpdated,
   next: fn(BotContext, Update) -> Nil,
 ) {
-  echo message_reaction_updated.new_reaction |> string.inspect
   use <- bool.lazy_guard(
     message_reaction_updated.new_reaction |> list.is_empty,
     fn() { Ok(next(ctx, upd)) },

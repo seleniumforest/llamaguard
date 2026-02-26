@@ -6,13 +6,12 @@ import gleam/result
 import gleam/set
 import gleam/string
 import infra/alias.{type BotContext}
+import infra/api_calls
 import infra/helpers
 import infra/log
 import infra/reply.{reply}
 import infra/storage.{Array, String}
 import models/error.{type BotError}
-import telega/api
-import telega/model/types.{BanChatMemberParameters, DeleteMessageParameters, Int}
 import telega/update.{type Command, type Update}
 
 // Toggle check_banned_words on/off
@@ -122,13 +121,13 @@ pub fn checker(
   use <- bool.lazy_guard(!needs_check, fn() { next(ctx, upd) })
 
   case upd {
-    update.TextUpdate(from_id:, chat_id:, message:, ..)
-    | update.AudioUpdate(from_id:, chat_id:, message:, ..)
-    | update.EditedMessageUpdate(from_id:, chat_id:, message:, ..)
-    | update.MessageUpdate(from_id:, chat_id:, message:, ..)
-    | update.PhotoUpdate(from_id:, chat_id:, message:, ..)
-    | update.VideoUpdate(from_id:, chat_id:, message:, ..)
-    | update.VoiceUpdate(from_id:, chat_id:, message:, ..) -> {
+    update.TextUpdate(from_id:, message:, ..)
+    | update.AudioUpdate(from_id:, message:, ..)
+    | update.EditedMessageUpdate(from_id:, message:, ..)
+    | update.MessageUpdate(from_id:, message:, ..)
+    | update.PhotoUpdate(from_id:, message:, ..)
+    | update.VideoUpdate(from_id:, message:, ..)
+    | update.VoiceUpdate(from_id:, message:, ..) -> {
       let text = message.text |> option.unwrap("")
       let caption = message.caption |> option.unwrap("")
       let full_name = helpers.try_get_fullname(message.from)
@@ -153,36 +152,13 @@ pub fn checker(
         from_id |> int.to_string,
       ])
 
-      // Delete the message first
-      let _ =
-        api.delete_message(
-          ctx.config.api_client,
-          DeleteMessageParameters(
-            chat_id: Int(chat_id),
-            message_id: message.message_id,
-          ),
-        )
-
-      case message.sender_chat {
-        option.None ->
-          api.ban_chat_member(
-            ctx.config.api_client,
-            parameters: BanChatMemberParameters(
-              chat_id: Int(chat_id),
-              user_id: from_id,
-              until_date: option.None,
-              revoke_messages: option.Some(True),
-            ),
-          )
-        option.Some(sc) ->
-          api.ban_chat_sender_chat(
-            ctx.config.api_client,
-            types.BanChatSenderChatParameters(
-              chat_id: Int(chat_id),
-              sender_chat_id: sc.id,
-            ),
-          )
-      }
+      api_calls.get_rid_of_msg(ctx, message.message_id)
+      |> result.try(fn(_) {
+        case message.sender_chat {
+          option.Some(sc) -> api_calls.get_rid_of_chat(ctx, sc)
+          option.None -> api_calls.get_rid_of_user(ctx, from_id)
+        }
+      })
       |> result.map(fn(_) { Nil })
       |> result.lazy_unwrap(fn() { next(ctx, upd) })
     }

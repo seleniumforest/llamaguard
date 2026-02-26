@@ -6,11 +6,11 @@ import gleam/option.{None, Some}
 import gleam/result
 import gleam/string
 import infra/alias.{type BotContext}
+import infra/api_calls
 import infra/helpers
 import infra/log
 import models/error.{type BotError}
-import telega/api
-import telega/model/types.{Int}
+import telega/model/types
 import telega/update.{type Command, type Update}
 
 pub fn command(ctx: BotContext, _cmd: Command) -> Result(BotContext, BotError) {
@@ -35,100 +35,76 @@ pub fn checker(
   case upd {
     update.AudioUpdate(message:, ..)
     | update.BusinessMessageUpdate(message:, ..)
-    | update.CommandUpdate(message:, ..)
-    | update.EditedBusinessMessageUpdate(message:, ..)
     | update.EditedMessageUpdate(message:, ..)
-    | update.MessageUpdate(message:, ..)
     | update.PhotoUpdate(message:, ..)
     | update.TextUpdate(message:, ..)
     | update.VideoUpdate(message:, ..)
     | update.VoiceUpdate(message:, ..) -> {
-      let is_forwarded_post =
-        message.from |> option.map(fn(u) { u.id }) == Some(777_000)
+      use <- bool.lazy_guard(message.is_automatic_forward == Some(True), fn() {
+        next(ctx, upd)
+      })
 
-      use <- bool.lazy_guard(is_forwarded_post, fn() { next(ctx, upd) })
-
-      case message.sender_chat {
-        Some(sc) -> {
+      case message.sender_chat, message.from {
+        Some(sc), _ -> {
           let sender_chat_title = sc.title |> option.unwrap("")
           let chat_title = message.chat.title |> option.unwrap("")
           log.printf("comparing {0} with {1}", [sender_chat_title, chat_title])
           let compare_result = smart_compare(sender_chat_title, chat_title)
 
           case compare_result {
-            False -> Some(next(ctx, upd))
+            False -> next(ctx, upd)
             True -> {
-              log.printf(
-                "Delete message and ban user {0} id {1} reason: chat clone",
-                [
-                  sender_chat_title,
-                  sc.id |> int.to_string,
-                ],
-              )
+              log.printf("Ban chat {0} id {1} reason: chat clone", [
+                sender_chat_title,
+                sc.id |> int.to_string,
+              ])
 
-              api.delete_message(
-                ctx.config.api_client,
-                types.DeleteMessageParameters(
-                  chat_id: Int(message.chat.id),
-                  message_id: message.message_id,
-                ),
-              )
-              |> result.try(fn(_) {
-                api.ban_chat_sender_chat(
-                  ctx.config.api_client,
-                  types.BanChatSenderChatParameters(
-                    chat_id: Int(upd.chat_id),
-                    sender_chat_id: sc.id,
-                  ),
-                )
-              })
-              |> result.try(fn(_) { Ok(Some(Nil)) })
-              |> result.lazy_unwrap(fn() { Some(next(ctx, upd)) })
+              api_calls.get_rid_of_msg(ctx, message.message_id)
+              |> result.try(fn(_) { api_calls.get_rid_of_chat(ctx, sc) })
+              |> result.try(fn(_) { Ok(Nil) })
+              |> result.lazy_unwrap(fn() { next(ctx, upd) })
             }
           }
         }
-        None -> {
-          case message.from {
-            Some(from) -> {
-              let last_first =
-                from.last_name |> option.unwrap("") <> " " <> from.first_name
-              let first_last =
-                from.first_name <> " " <> from.last_name |> option.unwrap("")
-              let chat_title = message.chat.title |> option.unwrap("")
-              let compare_result =
-                smart_compare(last_first, chat_title)
-                || smart_compare(first_last, chat_title)
+        None, Some(from) -> {
+          let is_clone = is_user_clone(from, message.chat)
+          use <- bool.lazy_guard(!is_clone, fn() { next(ctx, upd) })
+          log.printf("Ban user: {0} id {1} reason: chat clone", [
+            helpers.get_fullname(from),
+            from.id |> int.to_string,
+          ])
 
-              case compare_result {
-                False -> Some(next(ctx, upd))
-                _ -> {
-                  log.printf("Ban user lf: {0} fl: {1} reason: chat clone", [
-                    last_first,
-                    first_last,
-                  ])
-
-                  api.ban_chat_member(
-                    ctx.config.api_client,
-                    types.BanChatMemberParameters(
-                      chat_id: Int(upd.chat_id),
-                      user_id: from.id,
-                      until_date: option.None,
-                      revoke_messages: option.Some(True),
-                    ),
-                  )
-                  |> result.try(fn(_) { Ok(Some(Nil)) })
-                  |> result.lazy_unwrap(fn() { Some(next(ctx, upd)) })
-                }
-              }
-            }
-            None -> Some(next(ctx, upd))
-          }
+          api_calls.get_rid_of_msg(ctx, message.message_id)
+          |> result.try(fn(_) { api_calls.get_rid_of_user(ctx, from.id) })
+          |> result.try(fn(_) { Ok(Nil) })
+          |> result.lazy_unwrap(fn() { next(ctx, upd) })
         }
+        _, _ -> next(ctx, upd)
       }
-      |> option.lazy_unwrap(fn() { next(ctx, upd) })
+    }
+    update.ChatMemberUpdate(chat_member_updated:, ..) -> {
+      let is_clone =
+        is_user_clone(chat_member_updated.from, chat_member_updated.chat)
+      use <- bool.lazy_guard(!is_clone, fn() { next(ctx, upd) })
+
+      log.printf("Ban user: {0} id {1} reason: chat clone", [
+        helpers.get_fullname(chat_member_updated.from),
+        chat_member_updated.from.id |> int.to_string,
+      ])
+
+      api_calls.get_rid_of_user(ctx, chat_member_updated.from.id)
+      |> result.try(fn(_) { Ok(Nil) })
+      |> result.lazy_unwrap(fn() { next(ctx, upd) })
     }
     _ -> next(ctx, upd)
   }
+}
+
+fn is_user_clone(from: types.User, chat: types.Chat) {
+  let last_first = from.last_name |> option.unwrap("") <> " " <> from.first_name
+  let first_last = from.first_name <> " " <> from.last_name |> option.unwrap("")
+  let chat_title = chat.title |> option.unwrap("")
+  smart_compare(last_first, chat_title) || smart_compare(first_last, chat_title)
 }
 
 pub fn smart_compare(str1: String, str2: String) -> Bool {
