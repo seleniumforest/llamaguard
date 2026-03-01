@@ -14,10 +14,9 @@ pub fn command(ctx: BotContext, _cmd: Command) -> Result(BotContext, BotError) {
     <> "/trust <@username> - whitelist user. Reply with this message to trusted user OR specify username\n"
     <> "\n"
     <> "/checkBannedWords - toggle ban for messages with banned words\n"
-    <> "/addBanWord <word> - add word to ban list\n"
-    <> "/removeBanWord <word> - remove word from ban list\n"
+    <> "/banWord <word> - add or remove (if already exists) word to/from ban list, splitted by space\n"
     <> "\n"
-    <> "/listSettings - show all settings\n"
+    <> "/listSettings - show current settings\n"
     <> "/help - show this message"
 
   reply(ctx, msg) |> result.try(fn(_) { Ok(ctx) })

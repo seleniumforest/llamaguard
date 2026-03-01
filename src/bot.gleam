@@ -44,8 +44,7 @@ pub fn main() {
     |> router.on_command("strictModeNonMembers", strict_mode_nonmembers.command)
     |> router.on_command("trust", trust_user.command)
     |> router.on_command("checkBannedWords", banned_words.command)
-    |> router.on_command("addBanWord", banned_words.add_word_command)
-    |> router.on_command("removeBanWord", banned_words.remove_word_command)
+    |> router.on_command("banWord", banned_words.add_or_remove_words)
     |> router.on_command("listSettings", list_settings.command)
     |> router.on_commands(["help", "start"], help.command)
 

@@ -25,12 +25,11 @@ pub fn command(ctx: BotContext, _cmd: Command) -> Result(BotContext, BotError) {
   )
 }
 
-// Add a banned word
-pub fn add_word_command(
+pub fn add_or_remove_words(
   ctx: BotContext,
   cmd: Command,
 ) -> Result(BotContext, BotError) {
-  let words_to_add =
+  let input_words =
     cmd.text
     |> string.lowercase
     |> string.split(" ")
@@ -38,12 +37,19 @@ pub fn add_word_command(
     |> result.unwrap([])
     |> list.filter(fn(x) { !string.is_empty(x) })
 
-  case list.is_empty(words_to_add) {
-    True -> reply(ctx, "Usage: /addBanWord <word1> [word2] [word3] ...")
+  case list.is_empty(input_words) {
+    True -> reply(ctx, "Usage: /banWord <word1> [word2] [word3] ...")
     False -> {
       let current_words = ctx.session.chat_settings.banned_words
+      let words_to_remove =
+        current_words |> list.filter(fn(w) { list.contains(input_words, w) })
+      let words_to_add =
+        input_words |> list.filter(fn(w) { !list.contains(current_words, w) })
+
       let new_words =
-        list.append(current_words, words_to_add)
+        current_words
+        |> list.append(words_to_add)
+        |> list.filter(fn(w) { !list.contains(words_to_remove, w) })
         |> list.unique
 
       storage.save_chat_property(
@@ -55,52 +61,14 @@ pub fn add_word_command(
       |> result.try(fn(_) {
         reply(
           ctx,
-          log.format("Added words: {0}\nTotal:  {1}", [
-            string.join(words_to_add, ", "),
-            int.to_string(list.length(new_words)),
-          ]),
-        )
-      })
-    }
-  }
-  |> result.try(fn(_) { Ok(ctx) })
-}
-
-// Remove a banned word
-pub fn remove_word_command(
-  ctx: BotContext,
-  cmd: Command,
-) -> Result(BotContext, BotError) {
-  let words_to_remove =
-    cmd.text
-    |> string.split(" ")
-    |> list.rest()
-    |> result.unwrap([])
-    |> list.filter(fn(x) { !string.is_empty(x) })
-    |> list.map(fn(x) { string.lowercase(x) })
-
-  case list.is_empty(words_to_remove) {
-    True -> reply(ctx, "Usage: /removeBanWord <word1> [word2] [word3] ...")
-    False -> {
-      let current_words = ctx.session.chat_settings.banned_words
-      let new_words =
-        current_words
-        |> list.filter(fn(w) { !list.contains(words_to_remove, w) })
-        |> list.map(fn(x) { String(x) })
-
-      storage.save_chat_property(
-        ctx.session.db,
-        ctx.update.chat_id,
-        "banned_words",
-        Array(new_words),
-      )
-      |> result.try(fn(_) {
-        reply(
-          ctx,
-          log.format("Removed words: {0}\nRemaining: {1}", [
-            string.join(words_to_remove, ", "),
-            int.to_string(list.length(new_words)),
-          ]),
+          log.format(
+            "Added words: {0}\nRemoved Words: {1}\n\nNew banned words list: {2}",
+            [
+              string.join(words_to_add, ", "),
+              string.join(words_to_remove, ", "),
+              string.join(new_words, ", "),
+            ],
+          ),
         )
       })
     }
