@@ -5,13 +5,15 @@ import models/error.{type BotError}
 import telega/update.{type Command}
 
 pub fn command(ctx: BotContext, _cmd: Command) -> Result(BotContext, BotError) {
+  //use telega/format
   let msg =
     "Available commands:\n"
     <> "/kickNewAccounts <8000000000> - kick all users with telegram id over given.\n"
     <> "/strictModeNonMembers - strict mode (no media, links, kickNewAccounts id limit, no channels, empty username) for forwarded messages from linked channel + no reactions for all messages. Applied only for non-members.\n"
     <> "/checkChatClones - bot will try to find accounts/channels whose name is similar to chat title\n"
     <> "/checkFemaleName - bot will kick joining accounts with ENG/RU female name\n"
-    <> "/trust <@username> - whitelist user. Reply with this message to trusted user OR specify username\n"
+    <> "/trust <@username> - whitelist user. Reply with this command to trusted user OR specify username\n"
+    <> "/banLanguageCode <lang-code> - ban messages by user's language code. Reply with this command to spammer's message or specify language code in IETF format (zh-cn, ar, ko, etc.) To unban language, use same command again"
     <> "\n"
     <> "/checkBannedWords - toggle ban for messages with banned words\n"
     <> "/banWord <word> - add or remove (if already exists) word to/from ban list, splitted by space. Also checks sender's name or chat title\n"

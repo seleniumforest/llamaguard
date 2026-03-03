@@ -12,7 +12,7 @@ pub type BotSession(storage_message) {
 }
 
 pub type Resources {
-  Resources(female_names: List(String))
+  Resources(female_names: List(String), lang_codes: List(#(String, String)))
 }
 
 pub fn default(db: process.Subject(storage_message)) {
@@ -20,6 +20,6 @@ pub fn default(db: process.Subject(storage_message)) {
     chat_settings: chat_settings.default(),
     db:,
     message_id: option.None,
-    resources: Resources(female_names: []),
+    resources: Resources(female_names: [], lang_codes: []),
   )
 }

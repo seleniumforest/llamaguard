@@ -19,13 +19,20 @@ pub fn inject_resources(resources: bot_session.Resources) {
 pub fn load_static_resources() {
   let names = load_lines("./res/female_names.txt")
   let names_rus = load_lines("./res/female_names_rus.txt")
-
-  bot_session.Resources(
-    female_names: names
+  let female_names =
+    names
     |> list.append(names_rus)
     |> list.unique
-    |> list.map(fn(x) { string.lowercase(x) }),
-  )
+    |> list.map(fn(x) { string.lowercase(x) })
+
+  let lang_codes =
+    load_lines("./res/lang_codes.csv")
+    |> list.map(fn(str) {
+      let assert Ok(res) = string.split_once(str, ",")
+      #(res.0 |> string.trim |> string.lowercase, res.1 |> string.trim)
+    })
+
+  bot_session.Resources(female_names:, lang_codes:)
 }
 
 fn load_lines(path: String) {

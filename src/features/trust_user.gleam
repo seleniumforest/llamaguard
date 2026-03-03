@@ -105,6 +105,15 @@ pub fn checker(
   upd: update.Update,
   next: fn(BotContext, update.Update) -> Nil,
 ) -> Nil {
+  //admins are trusted by default
+  let is_admin = {
+    case ctx.session.chat_settings.admins_id_list {
+      option.None -> False
+      option.Some(admin_list) -> list.contains(admin_list, ctx.update.from_id)
+    }
+  }
+  use <- bool.guard(is_admin, Nil)
+
   case upd {
     update.AudioUpdate(message:, ..)
     | update.TextUpdate(message:, ..)

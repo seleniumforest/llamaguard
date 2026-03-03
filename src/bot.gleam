@@ -1,5 +1,6 @@
 import dot_env as dot
 import dot_env/env
+import features/ban_language_code
 import features/banned_words
 import features/check_chat_clones
 import features/check_female_name
@@ -43,6 +44,7 @@ pub fn main() {
     |> router.on_command("checkFemaleName", check_female_name.command)
     |> router.on_command("strictModeNonMembers", strict_mode_nonmembers.command)
     |> router.on_command("trust", trust_user.command)
+    |> router.on_command("banLanguageCode", ban_language_code.command)
     |> router.on_command("checkBannedWords", banned_words.command)
     |> router.on_command("banWord", banned_words.add_or_remove_words)
     |> router.on_command("listSettings", list_settings.command)
@@ -52,6 +54,7 @@ pub fn main() {
   let assert Ok(bot) =
     telega.new_for_polling(token:)
     |> telega.with_router(router)
+    //|> telega.set_drop_pending_updates(True)
     |> telega.with_catch_handler(fn(_ctx, err) {
       log.print_err(err |> string.inspect)
       Ok(Nil)
@@ -80,6 +83,7 @@ pub fn main() {
         "inline_query",
         "chosen_inline_result",
         "chat_member",
+        "callback_query",
       ],
       poll_interval: 1000,
     )
@@ -91,6 +95,7 @@ fn handle_update(ctx: BotContext, upd: Update) -> Result(BotContext, BotError) {
   process.spawn_unlinked(fn() {
     use ctx, upd <- trust_user.checker(ctx, upd)
     use ctx, upd <- kick_new_accounts.checker(ctx, upd)
+    use ctx, upd <- ban_language_code.checker(ctx, upd)
     use ctx, upd <- check_chat_clones.checker(ctx, upd)
     use ctx, upd <- check_female_name.checker(ctx, upd)
     use ctx, upd <- banned_words.checker(ctx, upd)

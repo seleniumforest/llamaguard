@@ -11,6 +11,7 @@ pub fn command(ctx: BotContext, _cmd: Command) -> Result(BotContext, BotError) {
   let s = ctx.session.chat_settings
   let banned_words = join_list(s.banned_words, "No banned words configured")
   let trusted_users = join_list(s.trusted_users, "No trusted users configured")
+  let banned_lang_codes = join_list(s.banned_lang_codes, "No banned languages")
 
   let msg =
     log.format(
@@ -22,6 +23,7 @@ pub fn command(ctx: BotContext, _cmd: Command) -> Result(BotContext, BotError) {
 /checkBannedWords: {4}
 Banned words: {5}
 Trusted users: {6}
+Banned languages: {7}
 ",
       [
         s.kick_new_accounts |> string.inspect,
@@ -31,6 +33,7 @@ Trusted users: {6}
         s.check_banned_words |> string.inspect,
         banned_words,
         trusted_users,
+        banned_lang_codes,
       ],
     )
 

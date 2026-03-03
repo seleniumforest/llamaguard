@@ -1,4 +1,5 @@
 import gleam/bool
+import gleam/list
 import gleam/option
 import gleam/result
 import gleam/string
@@ -47,6 +48,13 @@ pub fn try_get_fullname(user: option.Option(types.User)) {
     option.None -> ""
     option.Some(u) -> get_fullname(u)
   }
+}
+
+pub fn lookup_lang(ctx: BotContext, lang_code: String) {
+  ctx.session.resources.lang_codes
+  |> list.find(fn(x) { x.0 == lang_code })
+  |> result.try(fn(x) { Ok(x.1) })
+  |> result.unwrap(lang_code)
 }
 
 // all possible options
