@@ -1,6 +1,9 @@
+import gleam/int
 import gleam/option
 import gleam/result
+import gleam/string
 import infra/alias.{type BotContext}
+import infra/log
 import models/error
 import telega/api
 import telega/model/types.{
@@ -15,10 +18,13 @@ pub fn get_rid_of_user(ctx: BotContext, user_id: Int) {
       chat_id: Int(ctx.update.chat_id),
       user_id:,
       until_date: option.None,
-      revoke_messages: option.Some(False),
+      revoke_messages: option.Some(True),
     ),
   )
-  |> result.map_error(fn(e) { error.TelegaLibError(e) })
+  |> result.map_error(fn(e) {
+    log.print_err(e |> string.inspect)
+    error.TelegaLibError(e)
+  })
 }
 
 pub fn get_rid_of_msg(ctx: BotContext, message_id: Int) {
@@ -29,7 +35,10 @@ pub fn get_rid_of_msg(ctx: BotContext, message_id: Int) {
       message_id: message_id,
     ),
   )
-  |> result.map_error(fn(e) { error.TelegaLibError(e) })
+  |> result.map_error(fn(e) {
+    log.print_err(e |> string.inspect)
+    error.TelegaLibError(e)
+  })
 }
 
 pub fn get_rid_of_chat(ctx: BotContext, sender_chat: types.Chat) {
@@ -40,7 +49,10 @@ pub fn get_rid_of_chat(ctx: BotContext, sender_chat: types.Chat) {
       sender_chat_id: sender_chat.id,
     ),
   )
-  |> result.map_error(fn(e) { error.TelegaLibError(e) })
+  |> result.map_error(fn(e) {
+    log.print_err(e |> string.inspect)
+    error.TelegaLibError(e)
+  })
 }
 
 pub fn get_chat_member(ctx: BotContext, chat_id: Int, user_id: Int) {
@@ -48,7 +60,19 @@ pub fn get_chat_member(ctx: BotContext, chat_id: Int, user_id: Int) {
     ctx.config.api_client,
     GetChatMemberParameters(chat_id: Int(chat_id), user_id:),
   )
-  |> result.map_error(fn(e) { error.TelegaLibError(e) })
+  |> result.map_error(fn(e) {
+    log.print_err(e |> string.inspect)
+    error.TelegaLibError(e)
+  })
+  //todo caching expected in the future
+}
+
+pub fn get_chat(ctx: BotContext, chat_id: Int) {
+  api.get_chat(ctx.config.api_client, chat_id |> int.to_string)
+  |> result.map_error(fn(e) {
+    log.print_err(e |> string.inspect)
+    error.TelegaLibError(e)
+  })
   //todo caching expected in the future
 }
 
@@ -57,5 +81,8 @@ pub fn get_chat_administrators(ctx: BotContext, chat_id: Int) {
     ctx.config.api_client,
     GetChatAdministratorsParameters(Int(chat_id)),
   )
-  |> result.map_error(fn(e) { error.TelegaLibError(e) })
+  |> result.map_error(fn(e) {
+    log.print_err(e |> string.inspect)
+    error.TelegaLibError(e)
+  })
 }

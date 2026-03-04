@@ -56,57 +56,59 @@ fn handle_message(
   message: types.Message,
   next: fn(BotContext, Update) -> Nil,
 ) {
-  api_calls.get_chat_member(ctx, message.chat.id, upd.from_id)
-  |> result.try(fn(mem) {
-    case mem {
-      types.ChatMemberLeftChatMember(member) -> {
-        let restricted = has_restricted_content(message)
-        let suspicious = has_suspicious_profile(ctx, member)
-        let is_under_chat = message.sender_chat |> option.is_some
+  case message.sender_chat {
+    Some(sc) -> {
+      log.printf("Delete message from chat: {0} id: {1} reason: {2}", [
+        sc.title |> option.unwrap(""),
+        sc.id |> int.to_string,
+        "hiding under chat's account",
+      ])
 
-        use <- bool.lazy_guard(
-          !restricted && !suspicious && !is_under_chat,
-          fn() { Ok(next(ctx, upd)) },
-        )
-
-        case message.sender_chat {
-          Some(chat) -> {
-            log.printf("Delete message from chat: {0} id: {1} reason: {2}", [
-              chat.title |> option.unwrap(""),
-              chat.id |> int.to_string,
-              "hiding under chat's account",
-            ])
-
-            api_calls.get_rid_of_msg(ctx, message.message_id)
-            |> result.map(fn(_) { api_calls.get_rid_of_chat(ctx, chat) })
-            |> result.flatten
-          }
-          None -> {
-            let reason = case restricted, suspicious {
-              True, True -> "restricted message and suspicious profile"
-              True, False -> "restricted message"
-              False, True -> "suspicious profile"
-              _, _ -> ""
-            }
-
-            log.printf("Delete message from user: {0} id: {1} reason: {2}", [
-              helpers.try_get_fullname(message.from),
-              member.user.id |> int.to_string,
-              reason,
-            ])
-
-            api_calls.get_rid_of_msg(ctx, message.message_id)
-            |> result.map(fn(_) {
-              api_calls.get_rid_of_user(ctx, member.user.id)
-            })
-            |> result.flatten
-          }
-        }
-        |> result.map(fn(_) { Nil })
-      }
-      _ -> Ok(next(ctx, upd))
+      api_calls.get_rid_of_msg(ctx, message.message_id)
+      |> result.map(fn(_) { api_calls.get_rid_of_chat(ctx, sc) })
+      |> result.flatten
+      |> result.map(fn(_) { Nil })
     }
-  })
+    None -> {
+      use mem <- result.try(api_calls.get_chat_member(
+        ctx,
+        message.chat.id,
+        upd.from_id,
+      ))
+
+      case mem {
+        types.ChatMemberLeftChatMember(member) -> {
+          let restricted = has_restricted_content(message)
+          let suspicious = has_suspicious_user_profile(ctx, member)
+          let is_under_chat = message.sender_chat |> option.is_some
+
+          use <- bool.lazy_guard(
+            !restricted && !suspicious && !is_under_chat,
+            fn() { Ok(next(ctx, upd)) },
+          )
+
+          let reason = case restricted, suspicious {
+            True, True -> "restricted message and suspicious profile"
+            True, False -> "restricted message"
+            False, True -> "suspicious profile"
+            _, _ -> ""
+          }
+
+          log.printf("Delete message from user: {0} id: {1} reason: {2}", [
+            helpers.try_get_fullname(message.from),
+            member.user.id |> int.to_string,
+            reason,
+          ])
+
+          api_calls.get_rid_of_msg(ctx, message.message_id)
+          |> result.map(fn(_) { api_calls.get_rid_of_user(ctx, member.user.id) })
+          |> result.flatten
+          |> result.map(fn(_) { Nil })
+        }
+        _ -> Ok(next(ctx, upd))
+      }
+    }
+  }
 }
 
 fn handle_reaction(
@@ -151,7 +153,10 @@ fn handle_reaction(
   }
 }
 
-fn has_suspicious_profile(ctx: BotContext, member: types.ChatMemberLeft) -> Bool {
+fn has_suspicious_user_profile(
+  ctx: BotContext,
+  member: types.ChatMemberLeft,
+) -> Bool {
   let check_username = member.user.username |> option.is_none
   let check_female_name = case ctx.session.chat_settings.check_female_name {
     False -> False
@@ -182,6 +187,35 @@ fn has_suspicious_profile(ctx: BotContext, member: types.ChatMemberLeft) -> Bool
 
   check_username || check_female_name || check_id
 }
+
+// fn has_suspicious_chat_profile(ctx: BotContext, chat: types.Chat) -> Bool {
+//   let is_empty_title = case chat.title {
+//     None -> True
+//     Some(t) -> t |> string.trim |> string.is_empty
+//   }
+//   use <- bool.guard(is_empty_title, True)
+
+//   case ctx.session.chat_settings.check_female_name {
+//     False -> False
+//     True -> {
+//       let title_set =
+//         chat.title
+//         |> option.unwrap("")
+//         |> string.lowercase
+//         |> string.to_graphemes
+//         |> set.from_list
+
+//       let female_names_set =
+//         ctx.session.resources.female_names
+//         |> set.from_list
+
+//       title_set
+//       |> set.intersection(female_names_set)
+//       |> set.is_empty
+//       |> bool.negate
+//     }
+//   }
+// }
 
 fn has_restricted_content(msg: types.Message) -> Bool {
   let is_audio = msg.audio |> option.is_some
