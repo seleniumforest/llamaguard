@@ -10,7 +10,16 @@ import telega/update.{type Command}
 pub fn command(ctx: BotContext, _cmd: Command) -> Result(BotContext, BotError) {
   let s = ctx.session.chat_settings
   let banned_words = join_list(s.banned_words, "No banned words configured")
-  let trusted_users = join_list(s.trusted_users, "No trusted users configured")
+  let trusted_users =
+    s.trusted_users
+    |> list.map(fn(x) {
+      //remove @ in list, so user won't be tagged unnecessary 
+      case x {
+        "@" <> username -> username
+        _ -> x
+      }
+    })
+    |> join_list("No trusted users configured")
   let banned_lang_codes = join_list(s.banned_lang_codes, "No banned languages")
 
   let msg =
@@ -22,7 +31,7 @@ pub fn command(ctx: BotContext, _cmd: Command) -> Result(BotContext, BotError) {
 /checkFemaleName : {3}
 /checkBannedWords: {4}
 Banned words: {5}
-Trusted users: {6}
+Trusted users (without @): {6}
 Banned languages: {7}
 ",
       [
