@@ -121,6 +121,13 @@ pub fn checker(
     | update.VoiceUpdate(message:, ..)
     | update.PhotoUpdate(message:, ..)
     | update.EditedMessageUpdate(message:, ..) -> {
+      //linked channel id 777000 is also trusted by default
+      let is_forwarded = case message.from {
+        option.None -> False
+        option.Some(from) -> from.id == 777_000
+      }
+      use <- bool.guard(is_forwarded, Nil)
+
       let username_to_match = case message.sender_chat {
         option.Some(sc) -> sc.username
         option.None ->
