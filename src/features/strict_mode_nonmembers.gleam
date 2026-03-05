@@ -40,10 +40,20 @@ pub fn checker(
     | update.PhotoUpdate(message:, ..)
     | update.VideoUpdate(message:, ..)
     | update.VoiceUpdate(message:, ..) -> {
+      //check ONLY COMMENTS to posts on linked channel
+      let is_forward =
+        message.reply_to_message
+        |> option.map(fn(rtm) { rtm.is_automatic_forward })
+        |> option.flatten
+        |> option.unwrap(False)
+
+      use <- bool.lazy_guard(!is_forward, fn() { next(ctx, upd) })
+
       handle_message(ctx, upd, message, next)
       |> result.lazy_unwrap(fn() { next(ctx, upd) })
     }
     update.MessageReactionUpdate(message_reaction_updated:, ..) ->
+      //check REACTIONS from ALL users
       handle_reaction(ctx, upd, message_reaction_updated, next)
       |> result.lazy_unwrap(fn() { next(ctx, upd) })
     _ -> next(ctx, upd)
@@ -187,35 +197,6 @@ fn has_suspicious_user_profile(
 
   check_username || check_female_name || check_id
 }
-
-// fn has_suspicious_chat_profile(ctx: BotContext, chat: types.Chat) -> Bool {
-//   let is_empty_title = case chat.title {
-//     None -> True
-//     Some(t) -> t |> string.trim |> string.is_empty
-//   }
-//   use <- bool.guard(is_empty_title, True)
-
-//   case ctx.session.chat_settings.check_female_name {
-//     False -> False
-//     True -> {
-//       let title_set =
-//         chat.title
-//         |> option.unwrap("")
-//         |> string.lowercase
-//         |> string.to_graphemes
-//         |> set.from_list
-
-//       let female_names_set =
-//         ctx.session.resources.female_names
-//         |> set.from_list
-
-//       title_set
-//       |> set.intersection(female_names_set)
-//       |> set.is_empty
-//       |> bool.negate
-//     }
-//   }
-// }
 
 fn has_restricted_content(msg: types.Message) -> Bool {
   let is_audio = msg.audio |> option.is_some
