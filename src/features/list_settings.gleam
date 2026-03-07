@@ -20,7 +20,6 @@ pub fn command(ctx: BotContext, _cmd: Command) -> Result(BotContext, BotError) {
       }
     })
     |> join_list("No trusted users configured")
-  let banned_lang_codes = join_list(s.banned_lang_codes, "No banned languages")
 
   let msg =
     log.format(
@@ -42,7 +41,6 @@ Banned languages: {7}
         s.check_banned_words |> string.inspect,
         banned_words,
         trusted_users,
-        banned_lang_codes,
       ],
     )
 

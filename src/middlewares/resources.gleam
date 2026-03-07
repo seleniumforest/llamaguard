@@ -25,14 +25,7 @@ pub fn load_static_resources() {
     |> list.unique
     |> list.map(fn(x) { string.lowercase(x) })
 
-  let lang_codes =
-    load_lines("./res/lang_codes.csv")
-    |> list.map(fn(str) {
-      let assert Ok(res) = string.split_once(str, ",")
-      #(res.0 |> string.trim |> string.lowercase, res.1 |> string.trim)
-    })
-
-  bot_session.Resources(female_names:, lang_codes:)
+  bot_session.Resources(female_names:)
 }
 
 fn load_lines(path: String) {
