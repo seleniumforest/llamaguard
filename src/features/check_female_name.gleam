@@ -1,9 +1,6 @@
 import gleam/bool
 import gleam/int
-import gleam/list
-import gleam/option
 import gleam/result
-import gleam/string
 import infra/alias.{type BotContext}
 import infra/api_calls
 import infra/helpers
@@ -27,27 +24,21 @@ pub fn checker(
   upd: Update,
   next: fn(BotContext, Update) -> Nil,
 ) -> Nil {
-  case upd, ctx.session.chat_settings.check_female_name {
-    update.ChatMemberUpdate(chat_member_updated:, ..), True -> {
+  use <- bool.lazy_guard(!ctx.session.chat_settings.check_female_name, fn() {
+    next(ctx, upd)
+  })
+
+  case upd {
+    update.ChatMemberUpdate(chat_member_updated:, ..) -> {
       case chat_member_updated.new_chat_member {
         types.ChatMemberMemberChatMember(member) -> {
-          let first = member.user.first_name |> normalize
-          let last =
-            member.user.last_name
-            |> option.unwrap("")
-            |> normalize
-
-          let is_female_name =
-            ctx.session.resources.female_names
-            |> list.filter(fn(x) { x == first || x == last })
-            |> list.is_empty
-            |> bool.negate
+          let fullname = helpers.get_fullname(member.user)
+          let is_female_name = helpers.has_woman_name(ctx, fullname)
 
           use <- bool.lazy_guard(!is_female_name, fn() { next(ctx, upd) })
 
-          log.printf("Ban user: {0} {1} id: {2} reason: woman", [
-            member.user.first_name,
-            member.user.last_name |> option.unwrap(""),
+          log.printf("Ban user: {0} id: {1} reason: woman", [
+            fullname,
             int.to_string(member.user.id),
           ])
 
@@ -58,12 +49,6 @@ pub fn checker(
         _ -> next(ctx, upd)
       }
     }
-    _, _ -> next(ctx, upd)
+    _ -> next(ctx, upd)
   }
-}
-
-fn normalize(name: String) {
-  name
-  |> string.lowercase()
-  |> string.trim
 }

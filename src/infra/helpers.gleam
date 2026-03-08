@@ -1,8 +1,10 @@
 import gleam/bool
+import gleam/list
 import gleam/option
 import gleam/result
 import gleam/string
 import infra/alias.{type BotContext}
+import infra/ffi/unicode
 import infra/log
 import infra/reply.{reply}
 import infra/storage.{Bool, Value}
@@ -47,6 +49,19 @@ pub fn try_get_fullname(user: option.Option(types.User)) {
     option.None -> ""
     option.Some(u) -> get_fullname(u)
   }
+}
+
+pub fn has_woman_name(ctx: BotContext, full_name: String) {
+  use <- bool.guard(string.is_empty(full_name), False)
+
+  full_name
+  |> unicode.normalize_nfkd
+  |> string.lowercase
+  |> string.split(" ")
+  |> list.map(string.trim)
+  |> list.any(fn(x) {
+    !string.is_empty(x) && list.contains(ctx.session.resources.female_names, x)
+  })
 }
 
 // all possible options

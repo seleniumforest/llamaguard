@@ -1,10 +1,5 @@
-import gleeunit
 import gleeunit/should
 import infra/helpers.{match_ids}
-
-pub fn main() {
-  gleeunit.main()
-}
 
 pub fn match_test() {
   should.be_true(match_ids("123@qwe", "123"))

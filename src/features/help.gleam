@@ -13,7 +13,6 @@ pub fn command(ctx: BotContext, _cmd: Command) -> Result(BotContext, BotError) {
     <> "/checkChatClones - bot will try to find accounts/channels whose name is similar to chat title\n"
     <> "/checkFemaleName - bot will kick joining accounts with ENG/RU female name\n"
     <> "/trust <@username> - whitelist user. Reply with this command to trusted user OR specify username\n"
-    <> "/banLanguageCode <lang-code> - ban messages by user's language code. Reply with this command to spammer's message or specify language code in IETF format (zh-cn, ar, ko, etc.) To unban language, use same command again"
     <> "\n"
     <> "/checkBannedWords - toggle ban for messages with banned words\n"
     <> "/banWord <word> - add or remove (if already exists) word to/from ban list, splitted by space. Also checks sender's name or chat title\n"
