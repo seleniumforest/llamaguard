@@ -15,6 +15,7 @@ pub type ChatSettings {
     trusted_users: List(String),
     admins_id_list: option.Option(List(Int)),
     admins_last_upd: Int,
+    cas_enabled: Bool,
   )
 }
 
@@ -30,6 +31,7 @@ pub fn default() {
     trusted_users: [],
     admins_id_list: option.None,
     admins_last_upd: 0,
+    cas_enabled: False,
   )
 }
 
@@ -43,6 +45,7 @@ pub fn chat_encoder(chat: ChatSettings) {
     #("check_chat_clones", bool_as_int_encoder(chat.check_chat_clones)),
     #("check_female_name", bool_as_int_encoder(chat.check_chat_clones)),
     #("no_links", bool_as_int_encoder(chat.no_links)),
+    #("cas_enabled", bool_as_int_encoder(chat.cas_enabled)),
     #("check_banned_words", bool_as_int_encoder(chat.check_banned_words)),
     #("banned_words", json.array(chat.banned_words, json.string)),
     #("trusted_users", json.array(chat.trusted_users, json.string)),
@@ -69,6 +72,7 @@ pub fn chat_decoder() {
   use strict_mode_nonmembers <- bool_field("strict_mode_nonmembers")
   use check_chat_clones <- bool_field("check_chat_clones")
   use check_female_name <- bool_field("check_female_name")
+  use cas_enabled <- bool_field("cas_enabled")
   use no_links <- bool_field("no_links")
   use check_banned_words <- bool_field("check_banned_words")
   use banned_words <- string_list_field("banned_words")
@@ -87,6 +91,7 @@ pub fn chat_decoder() {
     trusted_users:,
     admins_id_list: option.Some(admins_id_list),
     admins_last_upd:,
+    cas_enabled:,
   ))
 }
 

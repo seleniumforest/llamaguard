@@ -1,4 +1,8 @@
+import gleam/dynamic/decode
+import gleam/http/request
+import gleam/httpc
 import gleam/int
+import gleam/json
 import gleam/option
 import gleam/result
 import gleam/string
@@ -85,4 +89,34 @@ pub fn get_chat_administrators(ctx: BotContext, chat_id: Int) {
     log.print_err(e |> string.inspect)
     error.TelegaLibError(e)
   })
+}
+
+pub fn check_cas(user_id: Int) -> Bool {
+  let assert Ok(base_req) =
+    request.to(
+      "https://api.cas.chat/check?user_id=" <> user_id |> int.to_string,
+    )
+
+  httpc.send(base_req)
+  |> result.map_error(fn(e) {
+    log.print_err(e |> string.inspect)
+    error.CasCheckError(e)
+  })
+  |> result.try(fn(x) {
+    echo x.body
+    x.body |> decode |> Ok()
+  })
+  |> result.unwrap(False)
+}
+
+fn decode(str: String) -> Bool {
+  let ok_decoder = {
+    use ok <- decode.field("ok", decode.bool)
+    decode.success(ok)
+  }
+
+  case json.parse(str, ok_decoder) {
+    Ok(val) -> val
+    Error(_) -> False
+  }
 }

@@ -29,9 +29,9 @@ pub fn command(ctx: BotContext, _cmd: Command) -> Result(BotContext, BotError) {
 /checkChatClones : {2}
 /checkFemaleName : {3}
 /checkBannedWords: {4}
-Banned words: {5}
-Trusted users (without @): {6}
-Banned languages: {7}
+/useCas: {5}
+Banned words: {6}
+Trusted users (without @): {7}
 ",
       [
         s.kick_new_accounts |> string.inspect,
@@ -39,6 +39,7 @@ Banned languages: {7}
         s.check_chat_clones |> string.inspect,
         s.check_female_name |> string.inspect,
         s.check_banned_words |> string.inspect,
+        s.cas_enabled |> string.inspect,
         banned_words,
         trusted_users,
       ],
