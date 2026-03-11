@@ -102,10 +102,7 @@ pub fn check_cas(user_id: Int) -> Bool {
     log.print_err(e |> string.inspect)
     error.CasCheckError(e)
   })
-  |> result.try(fn(x) {
-    echo x.body
-    x.body |> decode |> Ok()
-  })
+  |> result.try(fn(x) { x.body |> decode |> Ok() })
   |> result.unwrap(False)
 }
 
