@@ -8,7 +8,8 @@ import infra/args
 import infra/helpers.{match_ids}
 import infra/log
 import infra/reply.{reply}
-import infra/storage.{Array, String}
+import infra/storage/chat_settings as cs_storage
+import infra/storage/kvstorage.{Array, String}
 import models/error.{type BotError, GenericError}
 import telega/model/types
 import telega/update.{type Command}
@@ -85,7 +86,7 @@ fn process_id(ctx: BotContext, id: String) {
     |> list.unique
     |> list.map(fn(x) { String(x) })
 
-  storage.save_chat_property(
+  cs_storage.save_chat_property(
     ctx.session.db,
     ctx.update.chat_id,
     "trusted_users",

@@ -1,7 +1,7 @@
-import infra/storage
+import infra/storage/kvstorage
 import models/bot_session.{type BotSession}
 import models/error.{type BotError}
 import telega/bot.{type Context}
 
 pub type BotContext =
-  Context(BotSession(storage.StorageMessage), BotError)
+  Context(BotSession(kvstorage.StorageMessage), BotError)

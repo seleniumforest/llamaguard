@@ -10,7 +10,8 @@ import infra/api_calls
 import infra/helpers
 import infra/log
 import infra/reply.{reply}
-import infra/storage.{Array, String}
+import infra/storage/chat_settings as cs_storage
+import infra/storage/kvstorage.{Array, String}
 import models/error.{type BotError}
 import telega/update.{type Command, type Update}
 
@@ -52,7 +53,7 @@ pub fn add_or_remove_words(
         |> list.filter(fn(w) { !list.contains(words_to_remove, w) })
         |> list.unique
 
-      storage.save_chat_property(
+      cs_storage.save_chat_property(
         ctx.session.db,
         ctx.update.chat_id,
         "banned_words",

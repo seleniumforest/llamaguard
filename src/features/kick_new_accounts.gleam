@@ -8,7 +8,8 @@ import infra/api_calls
 import infra/helpers
 import infra/log
 import infra/reply.{reply, replyf}
-import infra/storage.{Value}
+import infra/storage/chat_settings as cs_storage
+import infra/storage/kvstorage.{Int, Value}
 import models/error.{type BotError}
 import telega/model/types
 import telega/update.{type Command, type Update, ChatMemberUpdate}
@@ -51,11 +52,11 @@ pub fn command(ctx: BotContext, cmd: Command) -> Result(BotContext, BotError) {
 }
 
 fn set_state(ctx: BotContext, current_state: Int, new_state: Int) {
-  storage.save_chat_property(
+  cs_storage.save_chat_property(
     ctx.session.db,
     ctx.update.chat_id,
     "kick_new_accounts",
-    Value(storage.Int(new_state)),
+    Value(Int(new_state)),
   )
   |> result.try(fn(_) {
     case new_state {

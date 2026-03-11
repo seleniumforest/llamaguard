@@ -3,18 +3,19 @@ import gleam/erlang/process.{type Subject}
 import gleam/json
 import gleam/list
 import gleam/otp/actor
-import models/chat_settings.{type ChatSettings} as ch
-import models/error.{
-  type BotError, DbConnectionError, EmptyDataError, InvalidValueError,
-}
+import models/error.{type BotError, DbConnectionError, EmptyDataError}
 import sqlight
 
 pub type StorageMessage {
-  GetChat(reply_with: Subject(Result(ChatSettings, BotError)), id: Int)
-  CreateChat(reply_with: Subject(Result(ChatSettings, BotError)), id: Int)
-  SaveChatProperty(
+  Get(reply_with: Subject(Result(String, BotError)), id: String)
+  Create(
+    reply_with: Subject(Result(String, BotError)),
+    id: String,
+    obj: json.Json,
+  )
+  SaveProperty(
     reply_with: Subject(Result(Bool, BotError)),
-    id: Int,
+    id: String,
     prop: String,
     val: JsonDbValue,
   )
@@ -40,23 +41,6 @@ pub fn init() -> Subject(StorageMessage) {
     |> actor.start
 
   actor.data
-}
-
-pub fn create_chat(actor: Subject(StorageMessage), id: Int) {
-  process.call_forever(actor, fn(a) { CreateChat(a, id) })
-}
-
-pub fn get_chat(actor: Subject(StorageMessage), id: Int) {
-  process.call_forever(actor, fn(a) { GetChat(a, id) })
-}
-
-pub fn save_chat_property(
-  actor: Subject(StorageMessage),
-  id: Int,
-  prop: String,
-  val: JsonDbValue,
-) {
-  process.call_forever(actor, fn(a) { SaveChatProperty(a, id, prop, val) })
 }
 
 fn string_decoder() {
@@ -94,12 +78,12 @@ fn handle_message(
   message: StorageMessage,
 ) -> actor.Next(sqlight.Connection, StorageMessage) {
   case message {
-    GetChat(id:, reply_with:) -> {
+    Get(id:, reply_with:) -> {
       let query =
         sqlight.query(
-          "SELECT data FROM chats WHERE chat_id = ? LIMIT 1;",
+          "SELECT value FROM data WHERE key = ? LIMIT 1;",
           on: connection,
-          with: [sqlight.int(id)],
+          with: [sqlight.text(id)],
           expecting: string_decoder(),
         )
 
@@ -107,18 +91,18 @@ fn handle_message(
       actor.continue(connection)
     }
 
-    SaveChatProperty(reply_with:, id:, prop:, val:) -> {
+    SaveProperty(reply_with:, id:, prop:, val:) -> {
       let #(val, sql) = case val {
         Array(vals) -> {
-          let sql = "UPDATE chats 
-            SET data = json_set(data, '$." <> prop <> "', json(?)) 
-            WHERE chat_id = ?;"
+          let sql = "UPDATE data 
+            SET value = json_set(value, '$." <> prop <> "', json(?)) 
+            WHERE key = ?;"
           #(sqlize_list(vals), sql)
         }
         Value(val) -> {
-          let sql = "UPDATE chats 
-            SET data = json_set(data, '$." <> prop <> "', ?) 
-            WHERE chat_id = ?;"
+          let sql = "UPDATE data 
+            SET value = json_set(value, '$." <> prop <> "', ?) 
+            WHERE key = ?;"
 
           #(sqlize_val(val), sql)
         }
@@ -128,7 +112,7 @@ fn handle_message(
         sqlight.query(
           sql,
           on: connection,
-          with: [val, sqlight.int(id)],
+          with: [val, sqlight.text(id)],
           expecting: decode.dynamic,
         )
 
@@ -139,21 +123,18 @@ fn handle_message(
 
       actor.continue(connection)
     }
-    CreateChat(id:, reply_with:) -> {
-      let default_chat =
-        ch.default()
-        |> ch.chat_encoder
+    Create(id:, reply_with:, obj:) -> {
+      let key = sqlight.text(id)
+      let value =
+        obj
         |> json.to_string
         |> sqlight.text
 
       let query =
-        "INSERT INTO chats (chat_id, data) values (?, ?) RETURNING data;"
+        "INSERT INTO data (key, value) values (?, ?) RETURNING value;"
         |> sqlight.query(
           on: connection,
-          with: [
-            sqlight.int(id),
-            default_chat,
-          ],
+          with: [key, value],
           expecting: string_decoder(),
         )
 
@@ -165,22 +146,14 @@ fn handle_message(
 
 fn unwrap_query_to_settings(
   query: Result(List(String), sqlight.Error),
-  reply_with: Subject(Result(ChatSettings, BotError)),
+  reply_with: Subject(Result(String, BotError)),
 ) {
   case query {
     Error(e) -> process.send(reply_with, Error(DbConnectionError(e)))
     Ok(ls) -> {
       case list.first(ls) {
         Error(_) -> process.send(reply_with, Error(EmptyDataError))
-        Ok(json) -> {
-          //echo json
-          case json.parse(from: json, using: ch.chat_decoder()) {
-            Error(e) -> process.send(reply_with, Error(InvalidValueError(e)))
-            Ok(obj) -> {
-              process.send(reply_with, Ok(obj))
-            }
-          }
-        }
+        Ok(json) -> process.send(reply_with, Ok(json))
       }
     }
   }
@@ -189,19 +162,11 @@ fn unwrap_query_to_settings(
 fn init_db() {
   let assert Ok(conn) = sqlight.open("file:data.sqlite3")
 
-  let create_chats =
-    "CREATE TABLE IF NOT EXISTS chats (
-      chat_id INTEGER PRIMARY KEY,
-      data JSON NULL);"
-  let assert Ok(Nil) = sqlight.exec(create_chats, conn)
+  let init_query =
+    "CREATE TABLE IF NOT EXISTS data (
+      key TEXT PRIMARY KEY,
+      value JSON NULL);"
 
-  // let create_users_chats =
-  //   "CREATE TABLE user_chats (
-  //     user_id INTEGER NOT NULL,
-  //     chat_id INTEGER NOT NULL,
-  //     PRIMARY KEY (user_id, chat_id)
-  //   ) WITHOUT ROWID;
-  //   CREATE INDEX idx_chat_lookup ON user_chats (chat_id, user_id);"
-  // let assert Ok(Nil) = sqlight.exec(create_users_chats, conn)
+  let assert Ok(Nil) = sqlight.exec(init_query, conn)
   conn
 }

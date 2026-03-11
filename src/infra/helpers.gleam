@@ -7,7 +7,8 @@ import infra/alias.{type BotContext}
 import infra/ffi/unicode
 import infra/log
 import infra/reply.{reply}
-import infra/storage.{Bool, Value}
+import infra/storage/chat_settings as cs_storage
+import infra/storage/kvstorage.{Bool, Value}
 import models/chat_settings
 import models/error.{type BotError}
 import telega/model/types
@@ -22,7 +23,7 @@ pub fn flip_bool_setting_and_reply(
   let current_state = setting_selector(ctx.session.chat_settings)
   let new_state = !current_state
 
-  storage.save_chat_property(
+  cs_storage.save_chat_property(
     ctx.session.db,
     ctx.update.chat_id,
     setting_name,

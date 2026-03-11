@@ -8,7 +8,8 @@ import gleam/time/timestamp
 import infra/alias.{type BotContext}
 import infra/api_calls
 import infra/log
-import infra/storage.{Array, Value}
+import infra/storage/chat_settings as cs_storage
+import infra/storage/kvstorage.{Array, Int, Value}
 import models/bot_session.{BotSession}
 import models/chat_settings.{type ChatSettings}
 import models/error
@@ -20,7 +21,7 @@ pub fn inject_chat_settings(db) {
   fn(handler) {
     fn(ctx: BotContext, update: update.Update) {
       let chat =
-        storage.get_chat(db, ctx.update.chat_id)
+        cs_storage.get_chat(db, ctx.update.chat_id)
         |> result.try_recover(fn(err) {
           case err {
             error.EmptyDataError -> {
@@ -28,7 +29,7 @@ pub fn inject_chat_settings(db) {
                 ctx.update.chat_id |> int.to_string,
               ])
 
-              storage.create_chat(db, ctx.update.chat_id)
+              cs_storage.create_chat_settings(db, ctx.update.chat_id)
             }
             _ -> Error(err)
           }
@@ -85,18 +86,18 @@ fn validate_admin_list(
         }
       })
 
-    storage.save_chat_property(
+    cs_storage.save_chat_property(
       ctx.session.db,
       ctx.update.chat_id,
       "admins_id_list",
-      Array(admin_ids |> list.map(fn(x) { storage.Int(x) })),
+      Array(admin_ids |> list.map(fn(x) { Int(x) })),
     )
     |> result.try(fn(_) {
-      storage.save_chat_property(
+      cs_storage.save_chat_property(
         ctx.session.db,
         ctx.update.chat_id,
         "admins_last_upd",
-        Value(storage.Int(now)),
+        Value(Int(now)),
       )
     })
     |> result.try(fn(_) {

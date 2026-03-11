@@ -14,7 +14,7 @@ import gleam/option
 import gleam/string
 import infra/alias.{type BotContext}
 import infra/log
-import infra/storage
+import infra/storage/kvstorage
 import middlewares/check_is_admin.{check_is_admin}
 import middlewares/extract_message_id.{extract_message_id}
 import middlewares/inject_chat_settings.{inject_chat_settings}
@@ -29,7 +29,7 @@ import telega/update.{type Update}
 
 pub fn main() {
   dot.new() |> dot.load
-  let db = storage.init()
+  let db = kvstorage.init()
   let resources = resources.load_static_resources()
 
   let router =
