@@ -7,6 +7,7 @@ import features/check_female_name
 import features/help
 import features/kick_new_accounts
 import features/list_settings
+import features/strict_mode_newcomers
 import features/strict_mode_nonmembers
 import features/trust_user
 import gleam/erlang/process
@@ -16,8 +17,8 @@ import infra/alias.{type BotContext}
 import infra/log
 import infra/storage/kvstorage
 import middlewares/check_is_admin.{check_is_admin}
-import middlewares/extract_message_id.{extract_message_id}
 import middlewares/inject_chat_settings.{inject_chat_settings}
+import middlewares/newcomers_events.{newcomers_events}
 import middlewares/resources.{inject_resources}
 import models/bot_session
 import models/error.{type BotError}
@@ -36,13 +37,14 @@ pub fn main() {
     router.new("default")
     |> router.use_middleware(inject_chat_settings(db))
     |> router.use_middleware(inject_resources(resources))
-    |> router.use_middleware(extract_message_id())
     |> router.use_middleware(check_is_admin())
+    |> router.use_middleware(newcomers_events())
     |> router.on_custom(fn(_) { True }, handle_update)
     |> router.on_command("kickNewAccounts", kick_new_accounts.command)
     |> router.on_command("checkChatClones", check_chat_clones.command)
     |> router.on_command("checkFemaleName", check_female_name.command)
     |> router.on_command("strictModeNonMembers", strict_mode_nonmembers.command)
+    |> router.on_command("strictModeNewcomers", strict_mode_newcomers.command)
     |> router.on_command("trust", trust_user.command)
     |> router.on_command("checkBannedWords", banned_words.command)
     |> router.on_command("useCas", cas.command)
@@ -92,8 +94,13 @@ pub fn main() {
 }
 
 fn handle_update(ctx: BotContext, upd: Update) -> Result(BotContext, BotError) {
+  echo upd
   process.spawn_unlinked(fn() {
+    //skip handling from admins, linked channel and trusted list. Always comes first
     use ctx, upd <- trust_user.checker(ctx, upd)
+    //checker to count newcomers' messages
+    use ctx, upd <- strict_mode_newcomers.checker(ctx, upd)
+
     use ctx, upd <- kick_new_accounts.checker(ctx, upd)
     use ctx, upd <- check_chat_clones.checker(ctx, upd)
     use ctx, upd <- check_female_name.checker(ctx, upd)

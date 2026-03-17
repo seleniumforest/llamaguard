@@ -1,10 +1,10 @@
 import gleam/bool
 import gleam/int
-import gleam/list
+import gleam/option.{None, Some}
 import gleam/result
-import gleam/string
 import infra/alias.{type BotContext}
 import infra/api_calls
+import infra/args
 import infra/helpers
 import infra/log
 import infra/reply.{reply, replyf}
@@ -15,22 +15,10 @@ import telega/model/types
 import telega/update.{type Command, type Update, ChatMemberUpdate}
 
 pub fn command(ctx: BotContext, cmd: Command) -> Result(BotContext, BotError) {
-  let cmd_args =
-    cmd.text
-    |> string.split(" ")
-    |> list.rest()
-    |> result.unwrap([])
-    |> list.filter(fn(x) { x |> string.is_empty |> bool.negate })
+  let args_count = args.args_count(cmd.text)
 
-  let args_count = cmd_args |> list.length
-  let first_arg =
-    cmd_args
-    |> list.first()
-    |> result.unwrap("")
-    |> int.parse()
-
-  case first_arg {
-    Error(_) -> {
+  case args.try_parse_int(cmd.text, 1) {
+    None -> {
       let current_state = ctx.session.chat_settings.kick_new_accounts
       case current_state, args_count {
         //when user has enabled kick_new_accounts feature, and provides no arguments
@@ -41,7 +29,7 @@ pub fn command(ctx: BotContext, cmd: Command) -> Result(BotContext, BotError) {
         _, _ -> reply(ctx, "Usage: /kickNewAccounts <id_to_kick>")
       }
     }
-    Ok(num) -> {
+    Some(num) -> {
       let current_state = ctx.session.chat_settings.kick_new_accounts
       let new_state = num
 

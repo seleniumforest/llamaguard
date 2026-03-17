@@ -2,7 +2,7 @@
 
 ## Llamas act as effective, natural guardians for alpacas by utilizing their territorial, assertive behavior to deter predators like coyotes, foxes, and loose dogs.
 
-A Telegram moderation bot written in Gleam (targeting the Erlang VM). Still not a complete anti-spam solution, but can be used with other bots' captcha/anti-spam features.
+A Telegram moderation bot, inspired by Combot and Shieldy. Still not a complete anti-spam solution, but can be used with other bots' captcha/anti-spam features. Written in Gleam (Erlang VM).
 
 ## Requirements
 

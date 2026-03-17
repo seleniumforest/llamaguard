@@ -26,16 +26,18 @@ pub fn command(ctx: BotContext, _cmd: Command) -> Result(BotContext, BotError) {
       "Current settings:\n
 /kickNewAccounts: {0}
 /strictModeNonMembers: {1}
-/checkChatClones : {2}
-/checkFemaleName : {3}
-/checkBannedWords: {4}
-/useCas: {5}
-Banned words: {6}
-Trusted users (without @): {7}
+/strictModeNewcomers: {2}
+/checkChatClones : {3}
+/checkFemaleName : {4}
+/checkBannedWords: {5}
+/useCas: {6}
+Banned words: {7}
+Trusted users (without @): {8}
 ",
       [
         s.kick_new_accounts |> string.inspect,
         s.strict_mode_nonmembers |> string.inspect,
+        s.strict_mode_newcomers |> string.inspect,
         s.check_chat_clones |> string.inspect,
         s.check_female_name |> string.inspect,
         s.check_banned_words |> string.inspect,

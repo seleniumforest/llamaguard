@@ -8,6 +8,7 @@ import sqlight
 
 pub type StorageMessage {
   Get(reply_with: Subject(Result(String, BotError)), id: String)
+  Delete(reply_with: Subject(Result(Bool, BotError)), id: String)
   Create(
     reply_with: Subject(Result(String, BotError)),
     id: String,
@@ -131,7 +132,7 @@ fn handle_message(
         |> sqlight.text
 
       let query =
-        "INSERT INTO data (key, value) values (?, ?) RETURNING value;"
+        "INSERT OR REPLACE INTO data (key, value) values (?, ?) RETURNING value;"
         |> sqlight.query(
           on: connection,
           with: [key, value],
@@ -139,6 +140,24 @@ fn handle_message(
         )
 
       unwrap_query_to_settings(query, reply_with)
+      actor.continue(connection)
+    }
+    Delete(reply_with:, id:) -> {
+      let key = sqlight.text(id)
+
+      let query =
+        "DELETE FROM data WHERE key = ?;"
+        |> sqlight.query(
+          on: connection,
+          with: [key],
+          expecting: string_decoder(),
+        )
+
+      case query {
+        Error(e) -> process.send(reply_with, Error(DbConnectionError(e)))
+        Ok(_) -> process.send(reply_with, Ok(True))
+      }
+
       actor.continue(connection)
     }
   }

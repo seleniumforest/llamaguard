@@ -4,6 +4,7 @@ import gleam/string
 import gleam/time/calendar
 import gleam/time/timestamp
 
+//todo try to make data generic
 pub fn format(format: String, data: List(String)) -> String {
   format_loop(format, data, 0)
 }

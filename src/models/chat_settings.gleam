@@ -1,12 +1,15 @@
-import gleam/dynamic/decode
+import gleam/dynamic/decode as dyn_decode
 import gleam/json
 import gleam/option
-import models/error
+import models/decode.{
+  bool_as_int_encoder, bool_field, int_field, int_list_field, string_list_field,
+}
 
 pub type ChatSettings {
   ChatSettings(
     kick_new_accounts: Int,
     strict_mode_nonmembers: Bool,
+    strict_mode_newcomers: Int,
     no_links: Bool,
     check_chat_clones: Bool,
     check_female_name: Bool,
@@ -32,12 +35,14 @@ pub fn default() {
     admins_id_list: option.None,
     admins_last_upd: 0,
     cas_enabled: False,
+    strict_mode_newcomers: 0,
   )
 }
 
 pub fn chat_encoder(chat: ChatSettings) {
   json.object([
     #("kick_new_accounts", json.int(chat.kick_new_accounts)),
+    #("strict_mode_newcomers", json.int(chat.strict_mode_newcomers)),
     #(
       "strict_mode_nonmembers",
       bool_as_int_encoder(chat.strict_mode_nonmembers),
@@ -52,24 +57,10 @@ pub fn chat_encoder(chat: ChatSettings) {
   ])
 }
 
-fn bool_as_int_encoder(val: Bool) {
-  json.int(case val {
-    False -> 0
-    True -> 1
-  })
-}
-
-fn int_to_bool(int: Int) {
-  case int {
-    0 -> Ok(False)
-    1 -> Ok(True)
-    _ -> Error(error.GenericError("Cannot decode int as bool"))
-  }
-}
-
 pub fn chat_decoder() {
   use kick_new_accounts <- int_field("kick_new_accounts")
   use strict_mode_nonmembers <- bool_field("strict_mode_nonmembers")
+  use strict_mode_newcomers <- int_field("strict_mode_newcomers")
   use check_chat_clones <- bool_field("check_chat_clones")
   use check_female_name <- bool_field("check_female_name")
   use cas_enabled <- bool_field("cas_enabled")
@@ -80,10 +71,11 @@ pub fn chat_decoder() {
   use admins_id_list <- int_list_field("admins_id_list")
   use admins_last_upd <- int_field("admins_last_upd")
 
-  decode.success(ChatSettings(
+  dyn_decode.success(ChatSettings(
     kick_new_accounts:,
     no_links:,
     strict_mode_nonmembers:,
+    strict_mode_newcomers:,
     check_chat_clones:,
     check_female_name:,
     check_banned_words:,
@@ -93,37 +85,4 @@ pub fn chat_decoder() {
     admins_last_upd:,
     cas_enabled:,
   ))
-}
-
-fn int_field(
-  name: String,
-  next: fn(Int) -> decode.Decoder(a),
-) -> decode.Decoder(a) {
-  use val <- decode.optional_field(name, 0, decode.int)
-  next(val)
-}
-
-fn bool_field(
-  name: String,
-  next: fn(Bool) -> decode.Decoder(a),
-) -> decode.Decoder(a) {
-  use val <- decode.optional_field(name, 0, decode.int)
-  let assert Ok(bool_val) = int_to_bool(val)
-  next(bool_val)
-}
-
-fn string_list_field(
-  name: String,
-  next: fn(List(String)) -> decode.Decoder(a),
-) -> decode.Decoder(a) {
-  use val <- decode.optional_field(name, [], decode.list(decode.string))
-  next(val)
-}
-
-fn int_list_field(
-  name: String,
-  next: fn(List(Int)) -> decode.Decoder(a),
-) -> decode.Decoder(a) {
-  use val <- decode.optional_field(name, [], decode.list(decode.int))
-  next(val)
 }

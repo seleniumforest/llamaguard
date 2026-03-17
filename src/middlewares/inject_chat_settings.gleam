@@ -4,9 +4,9 @@ import gleam/list
 import gleam/option
 import gleam/result
 import gleam/string
-import gleam/time/timestamp
 import infra/alias.{type BotContext}
 import infra/api_calls
+import infra/helpers
 import infra/log
 import infra/storage/chat_settings as cs_storage
 import infra/storage/kvstorage.{Array, Int, Value}
@@ -67,8 +67,7 @@ fn validate_admin_list(
   chat_settings: ChatSettings,
 ) -> Result(ChatSettings, error.BotError) {
   let is_private_chat = upd.chat_id > 0
-  let #(now, _) =
-    timestamp.system_time() |> timestamp.to_unix_seconds_and_nanoseconds
+  let now = helpers.now()
   let cache_expired = chat_settings.admins_last_upd + cache_ttl_sec < now
 
   use <- bool.lazy_guard(is_private_chat || !cache_expired, fn() {

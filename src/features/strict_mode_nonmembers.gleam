@@ -2,9 +2,7 @@ import gleam/bool
 import gleam/int
 import gleam/list
 import gleam/option.{None, Some}
-import gleam/regexp
 import gleam/result
-import gleam/string
 import infra/alias.{type BotContext}
 import infra/api_calls
 import infra/helpers
@@ -75,8 +73,7 @@ fn handle_message(
       ])
 
       api_calls.get_rid_of_msg(ctx, message.message_id)
-      |> result.map(fn(_) { api_calls.get_rid_of_chat(ctx, sc) })
-      |> result.flatten
+      |> result.try(fn(_) { api_calls.get_rid_of_chat(ctx, sc) })
       |> result.map(fn(_) { Nil })
     }
     None -> {
@@ -88,7 +85,7 @@ fn handle_message(
 
       case mem {
         types.ChatMemberLeftChatMember(member) -> {
-          let restricted = has_restricted_content(message)
+          let restricted = helpers.has_restricted_content(message)
           let suspicious = has_suspicious_user_profile(ctx, member)
           let is_under_chat = message.sender_chat |> option.is_some
 
@@ -111,8 +108,7 @@ fn handle_message(
           ])
 
           api_calls.get_rid_of_msg(ctx, message.message_id)
-          |> result.map(fn(_) { api_calls.get_rid_of_user(ctx, member.user.id) })
-          |> result.flatten
+          |> result.try(fn(_) { api_calls.get_rid_of_user(ctx, member.user.id) })
           |> result.map(fn(_) { Nil })
         }
         _ -> Ok(next(ctx, upd))
@@ -170,24 +166,9 @@ fn has_suspicious_user_profile(
   let check_username = member.user.username |> option.is_none
   let check_female_name = case ctx.session.chat_settings.check_female_name {
     False -> False
-    True -> {
-      let first =
-        ctx.session.resources.female_names
-        |> list.contains(
-          member.user.first_name |> string.lowercase() |> string.trim,
-        )
-
-      let last =
-        ctx.session.resources.female_names
-        |> list.contains(
-          member.user.last_name
-          |> option.unwrap("")
-          |> string.lowercase()
-          |> string.trim,
-        )
-
-      first || last
-    }
+    True ->
+      helpers.get_fullname(member.user)
+      |> helpers.has_woman_name(ctx, _)
   }
 
   let check_id = case ctx.session.chat_settings.kick_new_accounts {
@@ -196,39 +177,4 @@ fn has_suspicious_user_profile(
   }
 
   check_username || check_female_name || check_id
-}
-
-fn has_restricted_content(msg: types.Message) -> Bool {
-  let is_audio = msg.audio |> option.is_some
-  let is_photo = msg.photo |> option.is_some
-  let is_video = msg.video |> option.is_some
-  let is_video_note = msg.video_note |> option.is_some
-  let is_game = msg.game |> option.is_some
-  let is_document = msg.document |> option.is_some
-  let is_sticker = msg.sticker |> option.is_some
-  let is_caption_entities =
-    msg.caption_entities |> option.unwrap([]) |> list.is_empty |> bool.negate
-
-  let has_entities =
-    msg.entities |> option.unwrap([]) |> list.is_empty |> bool.negate
-
-  let contains_link = case regexp.from_string("https?://\\S+") {
-    Ok(url_regex) -> {
-      regexp.scan(with: url_regex, content: msg.text |> option.unwrap(""))
-      |> list.is_empty
-      |> bool.negate
-    }
-    Error(_) -> False
-  }
-
-  is_audio
-  || is_photo
-  || contains_link
-  || has_entities
-  || is_video
-  || is_video_note
-  || is_game
-  || is_document
-  || is_sticker
-  || is_caption_entities
 }

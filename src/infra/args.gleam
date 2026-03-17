@@ -1,6 +1,8 @@
+import gleam/bool
 import gleam/int
 import gleam/list
 import gleam/option
+import gleam/result
 import gleam/string
 
 pub fn try_parse_int(text: String, pos: Int) {
@@ -13,6 +15,15 @@ pub fn try_parse_int(text: String, pos: Int) {
 pub fn try_parse_str(text: String, pos: Int) {
   raw_args(text)
   |> at(pos)
+}
+
+pub fn args_count(text: String) {
+  text
+  |> string.split(" ")
+  |> list.rest()
+  |> result.unwrap([])
+  |> list.filter(fn(x) { x |> string.is_empty |> bool.negate })
+  |> list.length
 }
 
 fn raw_args(text: String) {
