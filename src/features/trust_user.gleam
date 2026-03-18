@@ -30,7 +30,7 @@ pub fn command(ctx: BotContext, cmd: Command) -> Result(BotContext, BotError) {
 fn no_username_reply(ctx: BotContext) {
   reply(
     ctx,
-    "Please provide username with @ or make a reply to user with /trust",
+    "Please provide username with @ or make a reply to user with /trustuser",
   )
 }
 

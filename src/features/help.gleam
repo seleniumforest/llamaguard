@@ -13,7 +13,7 @@ pub fn command(ctx: BotContext, _cmd: Command) -> Result(BotContext, BotError) {
     <> "/strictModeNewcomers <5> - strict mode for first <5> messages. Input 0 as argument to disable.\n"
     <> "/checkChatClones - bot will try to find accounts/channels whose name is similar to chat title\n"
     <> "/checkFemaleName - bot will kick joining accounts with ENG/RU female name\n"
-    <> "/trust <@username> - whitelist user. Reply with this command to trusted user OR specify username\n"
+    <> "/trustuser <@username> - whitelist user. Reply with this command to trusted user OR specify username\n"
     <> "/useCas - bot will use Combot's anti-spam lists for joining users and linked channel's comments"
     <> "\n"
     <> "/checkBannedWords - toggle ban for messages with banned words\n"

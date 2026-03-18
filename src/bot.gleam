@@ -45,7 +45,7 @@ pub fn main() {
     |> router.on_command("checkFemaleName", check_female_name.command)
     |> router.on_command("strictModeNonMembers", strict_mode_nonmembers.command)
     |> router.on_command("strictModeNewcomers", strict_mode_newcomers.command)
-    |> router.on_command("trust", trust_user.command)
+    |> router.on_command("trustuser", trust_user.command)
     |> router.on_command("checkBannedWords", banned_words.command)
     |> router.on_command("useCas", cas.command)
     |> router.on_command("banWord", banned_words.add_or_remove_words)
