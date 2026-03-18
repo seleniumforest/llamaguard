@@ -138,6 +138,11 @@ fn handle_user(
         next(ctx, upd)
       })
 
+      log.printf("Ban user: {0} id: {1} reason: did not passed quarantine", [
+        helpers.get_fullname(from),
+        from.id |> int.to_string,
+      ])
+
       let _ =
         uc_repo.delete_user_chat(ctx.session.db, from.id, message.chat.id)
         |> result.try(fn(_) {
