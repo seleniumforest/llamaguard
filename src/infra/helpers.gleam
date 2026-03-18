@@ -108,6 +108,7 @@ pub fn has_restricted_content(msg: Message) -> Bool {
   let is_game = msg.game |> option.is_some
   let is_document = msg.document |> option.is_some
   let is_sticker = msg.sticker |> option.is_some
+  let is_quote = msg.quote |> option.is_some
   let is_caption_entities =
     msg.caption_entities |> option.unwrap([]) |> list.is_empty |> bool.negate
 
@@ -139,4 +140,5 @@ pub fn has_restricted_content(msg: Message) -> Bool {
   || is_sticker
   || is_caption_entities
   || contains_emoji
+  || is_quote
 }

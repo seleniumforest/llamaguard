@@ -80,12 +80,18 @@ pub fn checker(
     | PhotoUpdate(message:, ..)
     | VideoUpdate(message:, ..)
     | VoiceUpdate(message:, ..) -> {
-      let is_user_join_system_msg = case message.new_chat_members {
-        Some(users) -> users |> list.length > 0
-        None -> False
+      let is_user_join_or_leave_system_msg = case
+        message.left_chat_member,
+        message.new_chat_members
+      {
+        Some(_), None -> True
+        None, Some(users) -> users |> list.length > 0
+        _, _ -> False
       }
 
-      use <- bool.lazy_guard(is_user_join_system_msg, fn() { next(ctx, upd) })
+      use <- bool.lazy_guard(is_user_join_or_leave_system_msg, fn() {
+        next(ctx, upd)
+      })
 
       case message.sender_chat, message.from {
         Some(sc), _ -> handle_chat(ctx, upd, next, message, sc)
