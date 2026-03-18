@@ -94,7 +94,6 @@ pub fn main() {
 }
 
 fn handle_update(ctx: BotContext, upd: Update) -> Result(BotContext, BotError) {
-  echo upd
   process.spawn_unlinked(fn() {
     //skip handling from admins, linked channel and trusted list. Always comes first
     use ctx, upd <- trust_user.checker(ctx, upd)

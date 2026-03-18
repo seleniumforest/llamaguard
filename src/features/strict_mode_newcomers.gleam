@@ -3,7 +3,6 @@ import gleam/int
 import gleam/list
 import gleam/option.{None, Some}
 import gleam/result
-import gleam/string
 import infra/alias.{type BotContext}
 import infra/api_calls
 import infra/args
@@ -73,9 +72,6 @@ pub fn checker(
     fn() { next(ctx, upd) },
   )
 
-  echo "strict_mode_newcomers = "
-    <> ctx.session.chat_settings.strict_mode_newcomers |> string.inspect
-
   case upd {
     TextUpdate(message:, ..)
     | AudioUpdate(message:, ..)
@@ -89,10 +85,7 @@ pub fn checker(
         None -> False
       }
 
-      use <- bool.lazy_guard(is_user_join_system_msg, fn() {
-        echo "skipping system join msg"
-        next(ctx, upd)
-      })
+      use <- bool.lazy_guard(is_user_join_system_msg, fn() { next(ctx, upd) })
 
       case message.sender_chat, message.from {
         Some(sc), _ -> handle_chat(ctx, upd, next, message, sc)
@@ -115,12 +108,7 @@ fn handle_user(
   let userchat = uc_repo.get_user_chat(ctx.session.db, from.id, message.chat.id)
   case userchat {
     Ok(uc) -> {
-      echo "userchat: " <> uc |> string.inspect
-
-      use <- bool.lazy_guard(!uc.on_quarantine, fn() {
-        echo "user is not on quarantine"
-        next(ctx, upd)
-      })
+      use <- bool.lazy_guard(!uc.on_quarantine, fn() { next(ctx, upd) })
 
       use <- bool.lazy_guard(
         uc.messages >= ctx.session.chat_settings.strict_mode_newcomers,
@@ -139,7 +127,6 @@ fn handle_user(
 
       let has_restricted = helpers.has_restricted_content(message)
       use <- bool.lazy_guard(!has_restricted, fn() {
-        echo "user has" <> uc.messages + 1 |> string.inspect <> "messages"
         let _ =
           uc_repo.save_user_chat_property(
             ctx.session.db,
@@ -150,8 +137,6 @@ fn handle_user(
           )
         next(ctx, upd)
       })
-
-      echo "restricted content during quarantine"
 
       let _ =
         uc_repo.delete_user_chat(ctx.session.db, from.id, message.chat.id)
@@ -173,7 +158,6 @@ fn handle_chat(
   message: types.Message,
   sc: types.Chat,
 ) -> Nil {
-  echo "as sender_chat"
   //we cannot detect "join" event for sender_chat, so create record when the first msg appeared
   let userchat =
     uc_repo.get_user_chat(ctx.session.db, sc.id, message.chat.id)
@@ -197,12 +181,7 @@ fn handle_chat(
 
   case userchat {
     Ok(uc) -> {
-      echo "userchat: " <> uc |> string.inspect
-
-      use <- bool.lazy_guard(!uc.on_quarantine, fn() {
-        echo "chat is not on quarantine"
-        next(ctx, upd)
-      })
+      use <- bool.lazy_guard(!uc.on_quarantine, fn() { next(ctx, upd) })
 
       use <- bool.lazy_guard(
         uc.messages >= ctx.session.chat_settings.strict_mode_newcomers,
@@ -221,7 +200,6 @@ fn handle_chat(
 
       let has_restricted = helpers.has_restricted_content(message)
       use <- bool.lazy_guard(!has_restricted, fn() {
-        echo "chat has" <> uc.messages + 1 |> string.inspect <> "messages"
         let _ =
           uc_repo.save_user_chat_property(
             ctx.session.db,
