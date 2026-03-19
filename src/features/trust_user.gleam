@@ -17,7 +17,7 @@ import telega/update.{type Command}
 pub fn command(ctx: BotContext, cmd: Command) -> Result(BotContext, BotError) {
   case args.try_parse_str(cmd.text, 1), ctx.update {
     option.Some(username), update.CommandUpdate(..) -> {
-      handle_username(ctx, username)
+      handle_username_or_id(ctx, username)
     }
     option.None, update.CommandUpdate(message:, ..) -> {
       handle_reply(ctx, message)
@@ -30,11 +30,11 @@ pub fn command(ctx: BotContext, cmd: Command) -> Result(BotContext, BotError) {
 fn no_username_reply(ctx: BotContext) {
   reply(
     ctx,
-    "Please provide username with @ or make a reply to user with /trustuser",
+    "Please provide either user's id OR username with @ or make a reply to user with /trustuser",
   )
 }
 
-fn handle_username(
+fn handle_username_or_id(
   ctx: BotContext,
   username: String,
 ) -> Result(types.Message, BotError) {
@@ -42,7 +42,11 @@ fn handle_username(
     "@" <> u | "https://t.me/" <> u -> {
       process_id(ctx, "@" <> u)
     }
-    _ -> Error(GenericError("Cannot extract username"))
+    _ ->
+      case int.parse(username) {
+        Ok(_) -> process_id(ctx, username)
+        Error(_) -> Error(GenericError("Cannot extract username or id"))
+      }
   }
 }
 
@@ -86,6 +90,11 @@ fn process_id(ctx: BotContext, id: String) {
     |> list.unique
     |> list.map(fn(x) { String(x) })
 
+  let is_id = case int.parse(id) {
+    Ok(_) -> True
+    Error(_) -> False
+  }
+
   cs_storage.save_chat_property(
     ctx.session.db,
     ctx.update.chat_id,
@@ -93,9 +102,11 @@ fn process_id(ctx: BotContext, id: String) {
     Array(new_trusted_users),
   )
   |> result.try(fn(_) {
-    let msg = case already_exists {
-      True -> "User {0} is not trusted anymore"
-      False -> "User {0} is trusted"
+    let msg = case already_exists, is_id {
+      True, True -> "User id {0} is not trusted anymore"
+      True, False -> "Username {0} is not trusted anymore"
+      False, True -> "User id {0} is trusted"
+      False, False -> "Username {0} is trusted"
     }
     reply(ctx, log.format(msg, [id]))
   })

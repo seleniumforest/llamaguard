@@ -14,8 +14,8 @@ pub fn command(ctx: BotContext, _cmd: Command) -> Result(BotContext, BotError) {
     s.trusted_users
     |> list.map(fn(x) {
       //remove @ in list, so user won't be tagged unnecessary 
-      case x {
-        "@" <> username -> username
+      case string.split_once(x, "@") {
+        Ok(#(_, uname)) if uname != "" -> uname
         _ -> x
       }
     })
