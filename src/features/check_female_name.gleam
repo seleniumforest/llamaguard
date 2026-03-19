@@ -33,7 +33,8 @@ pub fn checker(
       case chat_member_updated.new_chat_member {
         types.ChatMemberMemberChatMember(member) -> {
           let fullname = helpers.get_fullname(member.user)
-          let is_female_name = helpers.has_woman_name(ctx, fullname)
+          let is_female_name =
+            helpers.has_woman_name(ctx.session.resources.female_names, fullname)
 
           use <- bool.lazy_guard(!is_female_name, fn() { next(ctx, upd) })
 

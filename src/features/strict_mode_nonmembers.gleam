@@ -168,7 +168,7 @@ fn has_suspicious_user_profile(
     False -> False
     True ->
       helpers.get_fullname(member.user)
-      |> helpers.has_woman_name(ctx, _)
+      |> helpers.has_woman_name(ctx.session.resources.female_names, _)
   }
 
   let check_id = case ctx.session.chat_settings.kick_new_accounts {

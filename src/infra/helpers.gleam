@@ -68,17 +68,18 @@ pub fn has_pictographic_emoji(text: String) -> Bool {
   }
 }
 
-pub fn has_woman_name(ctx: BotContext, full_name: String) {
+pub fn has_woman_name(female_names: List(String), full_name: String) {
   use <- bool.guard(string.is_empty(full_name), False)
+
+  let assert Ok(reg) = regexp.from_string("[\\p{P}\\p{S}\\p{Emoji}]")
 
   full_name
   |> unicode.normalize_nfkd
   |> string.lowercase
+  |> regexp.replace(reg, _, "")
   |> string.split(" ")
   |> list.map(string.trim)
-  |> list.any(fn(x) {
-    !string.is_empty(x) && list.contains(ctx.session.resources.female_names, x)
-  })
+  |> list.any(fn(x) { !string.is_empty(x) && list.contains(female_names, x) })
 }
 
 // all possible options
