@@ -1,3 +1,4 @@
+import gleam/bool
 import infra/alias
 import infra/helpers
 import infra/storage/user_chat as uc_repo
@@ -21,6 +22,15 @@ pub fn newcomers_events() {
             chat_member_updated.new_chat_member
           {
             ChatMemberLeftChatMember(_), ChatMemberMemberChatMember(m) -> {
+              let is_trusted =
+                helpers.is_trusted(
+                  ctx.session.chat_settings.trusted_users,
+                  m.user.id,
+                  m.user.username,
+                )
+
+              use <- bool.lazy_guard(is_trusted, fn() { next(ctx, upd) })
+
               let _ =
                 uc_repo.create_user_chat(
                   ctx.session.db,
@@ -45,9 +55,7 @@ pub fn newcomers_events() {
                 )
               next(ctx, upd)
             }
-            _, _ -> {
-              next(ctx, upd)
-            }
+            _, _ -> next(ctx, upd)
           }
         }
         _ -> next(ctx, upd)

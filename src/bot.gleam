@@ -1,5 +1,6 @@
 import dot_env as dot
 import dot_env/env
+import features/ban_channels
 import features/banned_words
 import features/cas
 import features/check_chat_clones
@@ -48,6 +49,7 @@ pub fn main() {
     |> router.on_command("trustuser", trust_user.command)
     |> router.on_command("checkBannedWords", banned_words.command)
     |> router.on_command("useCas", cas.command)
+    |> router.on_command("banChannels", ban_channels.command)
     |> router.on_command("banWord", banned_words.add_or_remove_words)
     |> router.on_command("listSettings", list_settings.command)
     |> router.on_commands(["help", "start"], help.command)
@@ -100,6 +102,7 @@ fn handle_update(ctx: BotContext, upd: Update) -> Result(BotContext, BotError) {
     //checker to count newcomers' messages
     use ctx, upd <- strict_mode_newcomers.checker(ctx, upd)
 
+    use ctx, upd <- ban_channels.checker(ctx, upd)
     use ctx, upd <- kick_new_accounts.checker(ctx, upd)
     use ctx, upd <- check_chat_clones.checker(ctx, upd)
     use ctx, upd <- check_female_name.checker(ctx, upd)

@@ -1,7 +1,7 @@
 import gleam/bool
 import gleam/int
 import gleam/list
-import gleam/option
+import gleam/option.{None, Some}
 import gleam/result
 import infra/alias.{type BotContext}
 import infra/args
@@ -9,17 +9,18 @@ import infra/helpers.{match_ids}
 import infra/log
 import infra/reply.{reply}
 import infra/storage/chat_settings as cs_storage
-import infra/storage/kvstorage.{Array, String}
+import infra/storage/kvstorage.{Array, Bool, String, Value}
+import infra/storage/user_chat as uc_repo
 import models/error.{type BotError, GenericError}
 import telega/model/types
 import telega/update.{type Command}
 
 pub fn command(ctx: BotContext, cmd: Command) -> Result(BotContext, BotError) {
   case args.try_parse_str(cmd.text, 1), ctx.update {
-    option.Some(username), update.CommandUpdate(..) -> {
+    Some(username), update.CommandUpdate(..) -> {
       handle_username_or_id(ctx, username)
     }
-    option.None, update.CommandUpdate(message:, ..) -> {
+    None, update.CommandUpdate(message:, ..) -> {
       handle_reply(ctx, message)
     }
     _, _ -> no_username_reply(ctx)
@@ -60,13 +61,13 @@ fn handle_reply(
     |> option.flatten
 
   case user_to_trust {
-    option.None -> no_username_reply(ctx)
-    option.Some(user) -> {
+    None -> no_username_reply(ctx)
+    Some(user) -> {
       let str_id =
         user.id |> int.to_string
         <> case user.username {
-          option.None -> ""
-          option.Some(username) -> "@" <> username
+          None -> ""
+          Some(username) -> "@" <> username
         }
 
       process_id(ctx, str_id)
@@ -78,6 +79,7 @@ fn process_id(ctx: BotContext, id: String) {
   let already_exists =
     ctx.session.chat_settings.trusted_users
     |> list.any(fn(x) { match_ids(x, id) })
+
   let new_trusted_users =
     case already_exists {
       False ->
@@ -118,12 +120,11 @@ pub fn checker(
   next: fn(BotContext, update.Update) -> Nil,
 ) -> Nil {
   //admins are trusted by default
-  let is_admin = {
-    case ctx.session.chat_settings.admins_id_list {
-      option.None -> False
-      option.Some(admin_list) -> list.contains(admin_list, ctx.update.from_id)
-    }
+  let is_admin = case ctx.session.chat_settings.admins_id_list {
+    None -> False
+    Some(ls) -> list.contains(ls, ctx.update.from_id)
   }
+
   use <- bool.guard(is_admin, Nil)
 
   case upd {
@@ -135,14 +136,14 @@ pub fn checker(
     | update.EditedMessageUpdate(message:, ..) -> {
       //linked channel id 777000 is also trusted by default
       let is_forwarded = case message.from {
-        option.None -> False
-        option.Some(from) -> from.id == 777_000
+        None -> False
+        Some(from) -> from.id == 777_000
       }
       use <- bool.guard(is_forwarded, Nil)
 
       let username_to_match = case message.sender_chat {
-        option.Some(sc) -> sc.username
-        option.None ->
+        Some(sc) -> sc.username
+        None ->
           message.from
           |> option.map(fn(x) { x.username })
           |> option.flatten
@@ -162,22 +163,29 @@ fn check_is_trusted(
   username: option.Option(String),
   next: fn(BotContext, update.Update) -> Nil,
 ) {
-  let id_to_match = ctx.update.from_id |> int.to_string
-
   let is_trusted =
-    ctx.session.chat_settings.trusted_users
-    |> list.any(fn(x) {
-      let match_by_id = match_ids(x, id_to_match)
-      let match_by_username = case username {
-        option.None -> False
-        option.Some(u) -> match_ids(x, "@" <> u)
-      }
-
-      match_by_id || match_by_username
-    })
+    helpers.is_trusted(
+      ctx.session.chat_settings.trusted_users,
+      ctx.update.from_id,
+      username,
+    )
 
   case is_trusted {
     False -> next(ctx, upd)
-    True -> Nil
+    True -> {
+      //Get user off from quarantine on first message AFTER he was trusted. 
+      //We cannot do it in command /trustuser @username because we don't know his ID from command args
+      //and that's kind of unreliable to memoize @username because it could be changed
+      let _ =
+        uc_repo.save_user_chat_property(
+          ctx.session.db,
+          upd.from_id,
+          upd.chat_id,
+          "on_quarantine",
+          False |> Bool |> Value,
+        )
+
+      Nil
+    }
   }
 }

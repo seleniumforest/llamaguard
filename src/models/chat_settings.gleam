@@ -19,6 +19,7 @@ pub type ChatSettings {
     admins_id_list: option.Option(List(Int)),
     admins_last_upd: Int,
     cas_enabled: Bool,
+    ban_channels: Bool,
   )
 }
 
@@ -36,6 +37,7 @@ pub fn default() {
     admins_last_upd: 0,
     cas_enabled: False,
     strict_mode_newcomers: 0,
+    ban_channels: False,
   )
 }
 
@@ -51,6 +53,7 @@ pub fn chat_encoder(chat: ChatSettings) {
     #("check_female_name", bool_as_int_encoder(chat.check_chat_clones)),
     #("no_links", bool_as_int_encoder(chat.no_links)),
     #("cas_enabled", bool_as_int_encoder(chat.cas_enabled)),
+    #("ban_channels", bool_as_int_encoder(chat.ban_channels)),
     #("check_banned_words", bool_as_int_encoder(chat.check_banned_words)),
     #("banned_words", json.array(chat.banned_words, json.string)),
     #("trusted_users", json.array(chat.trusted_users, json.string)),
@@ -70,6 +73,7 @@ pub fn chat_decoder() {
   use trusted_users <- string_list_field("trusted_users")
   use admins_id_list <- int_list_field("admins_id_list")
   use admins_last_upd <- int_field("admins_last_upd")
+  use ban_channels <- bool_field("ban_channels")
 
   dyn_decode.success(ChatSettings(
     kick_new_accounts:,
@@ -84,5 +88,6 @@ pub fn chat_decoder() {
     admins_id_list: option.Some(admins_id_list),
     admins_last_upd:,
     cas_enabled:,
+    ban_channels:,
   ))
 }

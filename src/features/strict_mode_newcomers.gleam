@@ -13,7 +13,6 @@ import infra/storage/chat_settings as cs_storage
 import infra/storage/kvstorage.{Bool, Int, Value}
 import infra/storage/user_chat as uc_repo
 import models/error.{type BotError}
-import models/user_chat
 import telega/model/types
 import telega/update.{
   type Command, type Update, AudioUpdate, EditedMessageUpdate, MessageUpdate,
@@ -93,10 +92,9 @@ pub fn checker(
         next(ctx, upd)
       })
 
-      case message.sender_chat, message.from {
-        Some(sc), _ -> handle_chat(ctx, upd, next, message, sc)
-        _, Some(from) -> handle_user(ctx, upd, next, message, from)
-        _, _ -> next(ctx, upd)
+      case message.from {
+        Some(from) -> handle_user(ctx, upd, next, message, from)
+        _ -> next(ctx, upd)
       }
     }
 
@@ -116,20 +114,28 @@ fn handle_user(
     Ok(uc) -> {
       use <- bool.lazy_guard(!uc.on_quarantine, fn() { next(ctx, upd) })
 
-      use <- bool.lazy_guard(
-        uc.messages >= ctx.session.chat_settings.strict_mode_newcomers,
-        fn() {
-          let _ =
-            uc_repo.save_user_chat_property(
-              ctx.session.db,
-              from.id,
-              message.chat.id,
-              "on_quarantine",
-              False |> Bool |> Value,
-            )
-          next(ctx, upd)
-        },
-      )
+      let is_trusted_sender =
+        helpers.is_trusted(
+          ctx.session.chat_settings.trusted_users,
+          upd.from_id,
+          from.username,
+        )
+
+      let enough_messages =
+        uc.messages >= ctx.session.chat_settings.strict_mode_newcomers
+
+      use <- bool.lazy_guard(is_trusted_sender || enough_messages, fn() {
+        let _ =
+          //case when user was trusted AFTER joining and BEFORE passing quarantine
+          uc_repo.save_user_chat_property(
+            ctx.session.db,
+            from.id,
+            message.chat.id,
+            "on_quarantine",
+            False |> Bool |> Value,
+          )
+        next(ctx, upd)
+      })
 
       let has_restricted = helpers.has_restricted_content(message)
       use <- bool.lazy_guard(!has_restricted, fn() {
@@ -155,84 +161,6 @@ fn handle_user(
           api_calls.get_rid_of_msg(ctx, message.message_id)
         })
         |> result.try(fn(_) { api_calls.get_rid_of_user(ctx, from.id) })
-
-      Nil
-    }
-    Error(_) -> next(ctx, upd)
-  }
-}
-
-fn handle_chat(
-  ctx: BotContext,
-  upd: Update,
-  next: fn(BotContext, Update) -> Nil,
-  message: types.Message,
-  sc: types.Chat,
-) -> Nil {
-  //we cannot detect "join" event for sender_chat, so create record when the first msg appeared
-  let userchat =
-    uc_repo.get_user_chat(ctx.session.db, sc.id, message.chat.id)
-    |> result.try_recover(fn(err) {
-      case err {
-        error.EmptyDataError -> {
-          uc_repo.create_user_chat(
-            ctx.session.db,
-            sc.id,
-            message.chat.id,
-            user_chat.UserChat(
-              joined_time: helpers.now(),
-              messages: 0,
-              on_quarantine: True,
-            ),
-          )
-        }
-        _ -> Error(err)
-      }
-    })
-
-  case userchat {
-    Ok(uc) -> {
-      use <- bool.lazy_guard(!uc.on_quarantine, fn() { next(ctx, upd) })
-
-      use <- bool.lazy_guard(
-        uc.messages >= ctx.session.chat_settings.strict_mode_newcomers,
-        fn() {
-          let _ =
-            uc_repo.save_user_chat_property(
-              ctx.session.db,
-              sc.id,
-              message.chat.id,
-              "on_quarantine",
-              False |> Bool |> Value,
-            )
-          next(ctx, upd)
-        },
-      )
-
-      let has_restricted = helpers.has_restricted_content(message)
-      use <- bool.lazy_guard(!has_restricted, fn() {
-        let _ =
-          uc_repo.save_user_chat_property(
-            ctx.session.db,
-            sc.id,
-            message.chat.id,
-            "messages",
-            uc.messages + 1 |> Int |> Value,
-          )
-        next(ctx, upd)
-      })
-
-      log.printf("Ban chat: {0} id: {1} reason: did not passed quarantine", [
-        sc.title |> option.unwrap(""),
-        sc.id |> int.to_string,
-      ])
-
-      let _ =
-        uc_repo.delete_user_chat(ctx.session.db, sc.id, message.chat.id)
-        |> result.try(fn(_) {
-          api_calls.get_rid_of_msg(ctx, message.message_id)
-        })
-        |> result.try(fn(_) { api_calls.get_rid_of_chat(ctx, sc) })
 
       Nil
     }

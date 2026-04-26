@@ -31,8 +31,9 @@ pub fn command(ctx: BotContext, _cmd: Command) -> Result(BotContext, BotError) {
 /checkFemaleName : {4}
 /checkBannedWords: {5}
 /useCas: {6}
-Banned words: {7}
-Trusted users (without @): {8}
+/banChannels: {7}
+Banned words: {8}
+Trusted users (without @): {9}
 ",
       [
         s.kick_new_accounts |> string.inspect,
@@ -42,6 +43,7 @@ Trusted users (without @): {8}
         s.check_female_name |> string.inspect,
         s.check_banned_words |> string.inspect,
         s.cas_enabled |> string.inspect,
+        s.ban_channels |> string.inspect,
         banned_words,
         trusted_users,
       ],

@@ -1,4 +1,5 @@
 import gleam/bool
+import gleam/int
 import gleam/list
 import gleam/option.{type Option, None, Some}
 import gleam/regexp
@@ -83,7 +84,7 @@ pub fn has_woman_name(female_names: List(String), full_name: String) {
 }
 
 // all possible options
-// @username 
+// @username
 // id@username
 // id
 pub fn match_ids(id1: String, id2: String) {
@@ -95,7 +96,7 @@ pub fn match_ids(id1: String, id2: String) {
     Ok(#(_, n1)), Ok(#(_, n2)) if n1 != "" && n2 != "" -> n1 == n2
     //id with id@username
     Error(_), Ok(#(uid, _uname)) if id1 != "" && uid != "" -> id1 == uid
-    //id@username with id 
+    //id@username with id
     Ok(#(id, _name)), Error(_) if id2 != "" && id != "" -> id2 == id
     _, _ -> False
   }
@@ -110,6 +111,8 @@ pub fn has_restricted_content(msg: Message) -> Bool {
   let is_document = msg.document |> option.is_some
   let is_sticker = msg.sticker |> option.is_some
   let is_quote = msg.quote |> option.is_some
+  let is_story = msg.story |> option.is_some
+
   let is_caption_entities =
     msg.caption_entities |> option.unwrap([]) |> list.is_empty |> bool.negate
 
@@ -142,4 +145,34 @@ pub fn has_restricted_content(msg: Message) -> Bool {
   || is_caption_entities
   || contains_emoji
   || is_quote
+  || is_story
+}
+
+const trusted_ids = [
+  777_000,
+  136_817_688,
+  42_777,
+  1_087_968_824,
+  1_271_266_957,
+  701_000,
+  5_304_255_346,
+]
+
+pub fn is_trusted(
+  trusted_users: List(String),
+  user_id: Int,
+  username: option.Option(String),
+) {
+  use <- bool.guard(list.contains(trusted_ids, user_id), True)
+
+  trusted_users
+  |> list.any(fn(x) {
+    let match_by_id = match_ids(x, user_id |> int.to_string)
+    let match_by_username = case username {
+      option.None -> False
+      option.Some(u) -> match_ids(x, "@" <> u)
+    }
+
+    match_by_id || match_by_username
+  })
 }
