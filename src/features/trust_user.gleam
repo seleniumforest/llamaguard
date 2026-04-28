@@ -11,7 +11,7 @@ import infra/reply.{reply}
 import infra/storage/chat_settings as cs_storage
 import infra/storage/kvstorage.{Array, Bool, String, Value}
 import infra/storage/user_chat as uc_repo
-import models/error.{type BotError, GenericError}
+import models/error.{type BotError}
 import telega/model/types
 import telega/update.{type Command}
 
@@ -31,7 +31,7 @@ pub fn command(ctx: BotContext, cmd: Command) -> Result(BotContext, BotError) {
 fn no_username_reply(ctx: BotContext) {
   reply(
     ctx,
-    "Please provide either user's id OR username with @ or make a reply to user with /trustuser",
+    "Please provide either user's id OR username with @ or make a reply to user with /trustuser. Example: /trustuser @username",
   )
 }
 
@@ -46,7 +46,7 @@ fn handle_username_or_id(
     _ ->
       case int.parse(username) {
         Ok(_) -> process_id(ctx, username)
-        Error(_) -> Error(GenericError("Cannot extract username or id"))
+        Error(_) -> no_username_reply(ctx)
       }
   }
 }
@@ -185,7 +185,7 @@ fn check_is_trusted(
           False |> Bool |> Value,
         )
 
-      Nil
+      next(ctx, upd)
     }
   }
 }

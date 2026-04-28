@@ -15,6 +15,7 @@ pub type ChatSettings {
     check_female_name: Bool,
     check_banned_words: Bool,
     banned_words: List(String),
+    banned_languages: List(String),
     trusted_users: List(String),
     admins_id_list: option.Option(List(Int)),
     admins_last_upd: Int,
@@ -33,6 +34,7 @@ pub fn default() {
     check_banned_words: False,
     banned_words: [],
     trusted_users: [],
+    banned_languages: [],
     admins_id_list: option.None,
     admins_last_upd: 0,
     cas_enabled: False,
@@ -57,6 +59,7 @@ pub fn chat_encoder(chat: ChatSettings) {
     #("check_banned_words", bool_as_int_encoder(chat.check_banned_words)),
     #("banned_words", json.array(chat.banned_words, json.string)),
     #("trusted_users", json.array(chat.trusted_users, json.string)),
+    #("banned_languages", json.array(chat.banned_languages, json.string)),
   ])
 }
 
@@ -70,6 +73,7 @@ pub fn chat_decoder() {
   use no_links <- bool_field("no_links")
   use check_banned_words <- bool_field("check_banned_words")
   use banned_words <- string_list_field("banned_words")
+  use banned_languages <- string_list_field("banned_languages")
   use trusted_users <- string_list_field("trusted_users")
   use admins_id_list <- int_list_field("admins_id_list")
   use admins_last_upd <- int_field("admins_last_upd")
@@ -89,5 +93,6 @@ pub fn chat_decoder() {
     admins_last_upd:,
     cas_enabled:,
     ban_channels:,
+    banned_languages:,
   ))
 }

@@ -139,6 +139,9 @@ fn handle_user(
 
       let has_restricted = helpers.has_restricted_content(message)
       use <- bool.lazy_guard(!has_restricted, fn() {
+        let nxt = next(ctx, upd)
+
+        //update only after all checks
         let _ =
           uc_repo.save_user_chat_property(
             ctx.session.db,
@@ -147,7 +150,8 @@ fn handle_user(
             "messages",
             uc.messages + 1 |> Int |> Value,
           )
-        next(ctx, upd)
+
+        nxt
       })
 
       log.printf("Ban user: {0} id: {1} reason: did not passed quarantine", [

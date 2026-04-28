@@ -9,7 +9,9 @@ import telega/update.{type Command}
 
 pub fn command(ctx: BotContext, _cmd: Command) -> Result(BotContext, BotError) {
   let s = ctx.session.chat_settings
-  let banned_words = join_list(s.banned_words, "No banned words configured")
+  let banned_words = join_list_or(s.banned_words, "No banned words configured")
+  let banned_lang =
+    join_list_or(s.banned_languages, "No banned languages configured")
   let trusted_users =
     s.trusted_users
     |> list.map(fn(x) {
@@ -19,7 +21,7 @@ pub fn command(ctx: BotContext, _cmd: Command) -> Result(BotContext, BotError) {
         _ -> x
       }
     })
-    |> join_list("No trusted users configured")
+    |> join_list_or("No trusted users configured")
 
   let msg =
     log.format(
@@ -34,6 +36,7 @@ pub fn command(ctx: BotContext, _cmd: Command) -> Result(BotContext, BotError) {
 /banChannels: {7}
 Banned words: {8}
 Trusted users (without @): {9}
+Banned languages: {10}
 ",
       [
         s.kick_new_accounts |> string.inspect,
@@ -46,13 +49,14 @@ Trusted users (without @): {9}
         s.ban_channels |> string.inspect,
         banned_words,
         trusted_users,
+        banned_lang,
       ],
     )
 
   reply(ctx, msg) |> result.try(fn(_) { Ok(ctx) })
 }
 
-fn join_list(ls: List(String), empty_msg: String) {
+fn join_list_or(ls: List(String), empty_msg: String) {
   case ls |> list.is_empty {
     False -> ls |> string.join(", ")
     True -> empty_msg

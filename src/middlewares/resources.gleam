@@ -17,6 +17,8 @@ pub fn inject_resources(resources: bot_session.Resources) {
 }
 
 pub fn load_static_resources() {
+  let unicode_script_extensions =
+    load_lines("./res/unicode_script_extensions.txt")
   let names = load_lines("./res/female_names.txt")
   let names_rus = load_lines("./res/female_names_rus.txt")
   let female_names =
@@ -25,7 +27,7 @@ pub fn load_static_resources() {
     |> list.unique
     |> list.map(fn(x) { string.lowercase(x) })
 
-  bot_session.Resources(female_names:)
+  bot_session.Resources(female_names:, unicode_script_extensions:)
 }
 
 fn load_lines(path: String) {

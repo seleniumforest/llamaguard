@@ -1,6 +1,7 @@
 import dot_env as dot
 import dot_env/env
 import features/ban_channels
+import features/ban_language
 import features/banned_words
 import features/cas
 import features/check_chat_clones
@@ -51,6 +52,7 @@ pub fn main() {
     |> router.on_command("useCas", cas.command)
     |> router.on_command("banChannels", ban_channels.command)
     |> router.on_command("banWord", banned_words.add_or_remove_words)
+    |> router.on_command("banLang", ban_language.command)
     |> router.on_command("listSettings", list_settings.command)
     |> router.on_commands(["help", "start"], help.command)
 
@@ -106,6 +108,7 @@ fn handle_update(ctx: BotContext, upd: Update) -> Result(BotContext, BotError) {
     use ctx, upd <- kick_new_accounts.checker(ctx, upd)
     use ctx, upd <- check_chat_clones.checker(ctx, upd)
     use ctx, upd <- check_female_name.checker(ctx, upd)
+    use ctx, upd <- ban_language.checker(ctx, upd)
     use ctx, upd <- banned_words.checker(ctx, upd)
     use ctx, upd <- cas.checker(ctx, upd)
     use _ctx, _upd <- strict_mode_nonmembers.checker(ctx, upd)
