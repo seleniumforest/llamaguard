@@ -78,9 +78,9 @@ pub fn checker(
           let needs_ban = member.user.id > ids_to_delete && !member.user.is_bot
           use <- bool.lazy_guard(!needs_ban, fn() { next(ctx, upd) })
 
-          log.printf("Ban user: {0} id: {1} reason: fresh account", [
-            helpers.get_fullname(member.user),
-            int.to_string(member.user.id),
+          log.printf("Ctx: {0} Ban {1} reason: fresh account", [
+            helpers.view_chat(chat_member_updated.chat),
+            helpers.view_user(chat_member_updated.from),
           ])
 
           api_calls.get_rid_of_user(ctx, member.user.id)

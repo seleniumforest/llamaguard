@@ -1,6 +1,5 @@
 import gleam/bool
 import gleam/dict.{type Dict}
-import gleam/int
 import gleam/list
 import gleam/option.{None, Some}
 import gleam/result
@@ -54,9 +53,9 @@ pub fn checker(
           case compare_result {
             False -> next(ctx, upd)
             True -> {
-              log.printf("Ban chat {0} id {1} reason: chat clone", [
-                sender_chat_title,
-                sc.id |> int.to_string,
+              log.printf("Ctx: {0} Ban {1} reason: chat clone", [
+                helpers.view_chat(message.chat),
+                helpers.view_chat(sc),
               ])
 
               api_calls.get_rid_of_msg(ctx, message.message_id)
@@ -69,9 +68,9 @@ pub fn checker(
         None, Some(from) -> {
           let is_clone = is_user_clone(from, message.chat)
           use <- bool.lazy_guard(!is_clone, fn() { next(ctx, upd) })
-          log.printf("Ban user: {0} id {1} reason: chat clone", [
-            helpers.get_fullname(from),
-            from.id |> int.to_string,
+          log.printf("Ctx: {0} Ban {1} reason: chat clone", [
+            helpers.view_chat(message.chat),
+            helpers.view_user(from),
           ])
 
           api_calls.get_rid_of_msg(ctx, message.message_id)
@@ -87,9 +86,9 @@ pub fn checker(
         is_user_clone(chat_member_updated.from, chat_member_updated.chat)
       use <- bool.lazy_guard(!is_clone, fn() { next(ctx, upd) })
 
-      log.printf("Ban user: {0} id {1} reason: chat clone", [
-        helpers.get_fullname(chat_member_updated.from),
-        chat_member_updated.from.id |> int.to_string,
+      log.printf("Ctx: {0} Ban {1} reason: chat clone", [
+        helpers.view_chat(chat_member_updated.chat),
+        helpers.view_user(chat_member_updated.from),
       ])
 
       api_calls.get_rid_of_user(ctx, chat_member_updated.from.id)

@@ -55,18 +55,43 @@ pub fn try_get_fullname(user: Option(types.User)) {
   }
 }
 
+pub fn view_chat(chat: types.Chat) {
+  log.format("[{0} (id:{1})]", [
+    chat.title |> option.unwrap("<no title>"),
+    chat.id |> int.to_string,
+  ])
+}
+
+pub fn view_user(user: types.User) {
+  log.format("[{0} {1} (id:{2})]", [
+    user.first_name,
+    user.last_name |> option.unwrap(""),
+    user.id |> int.to_string,
+  ])
+}
+
+pub fn view_sender(msg: types.Message) {
+  handle_sender(msg, view_user, view_chat, fn() { "<no sender>" })
+}
+
+pub fn handle_sender(
+  msg: types.Message,
+  on_user: fn(types.User) -> a,
+  on_channel: fn(types.Chat) -> a,
+  fallback: fn() -> a,
+) {
+  case msg.sender_chat, msg.from {
+    Some(sc), None -> on_channel(sc)
+    None, Some(from) -> on_user(from)
+    _, _ -> fallback()
+  }
+}
+
 pub fn now() {
   let #(now, _) =
     timestamp.system_time()
     |> timestamp.to_unix_seconds_and_nanoseconds
   now
-}
-
-pub fn has_pictographic_emoji(text: String) -> Bool {
-  case regexp.from_string("\\p{Extended_Pictographic}") {
-    Ok(re) -> regexp.check(re, text)
-    Error(_) -> False
-  }
 }
 
 pub fn has_woman_name(female_names: List(String), full_name: String) {
@@ -129,7 +154,11 @@ pub fn has_restricted_content(msg: Message) -> Bool {
   }
 
   let contains_emoji = case msg.text {
-    Some(text) -> has_pictographic_emoji(text)
+    Some(text) ->
+      case regexp.from_string("\\p{Extended_Pictographic}") {
+        Ok(re) -> regexp.check(re, text)
+        Error(_) -> False
+      }
     None -> False
   }
 

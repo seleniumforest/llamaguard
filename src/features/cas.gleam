@@ -1,5 +1,4 @@
 import gleam/bool
-import gleam/int
 import gleam/option
 import gleam/result
 import infra/alias.{type BotContext}
@@ -31,7 +30,13 @@ pub fn checker(
 
   case upd {
     update.ChatMemberUpdate(chat_member_updated:, ..) -> {
-      check_and_reply(ctx, upd, next, chat_member_updated.from)
+      check_and_reply(
+        ctx,
+        upd,
+        next,
+        chat_member_updated.chat,
+        chat_member_updated.from,
+      )
     }
     update.AudioUpdate(message:, ..)
     | update.BusinessMessageUpdate(message:, ..)
@@ -45,7 +50,7 @@ pub fn checker(
         option.Some(from) -> {
           //todo check all later with caching/export
           case from.id == 777_000 {
-            True -> check_and_reply(ctx, upd, next, from)
+            True -> check_and_reply(ctx, upd, next, message.chat, from)
             False -> next(ctx, upd)
           }
         }
@@ -55,13 +60,13 @@ pub fn checker(
   }
 }
 
-fn check_and_reply(ctx, upd, next, from: types.User) {
+fn check_and_reply(ctx, upd, next, chat: types.Chat, from: types.User) {
   let is_cas_banned = api_calls.check_cas(from.id)
   use <- bool.lazy_guard(!is_cas_banned, fn() { next(ctx, upd) })
 
-  log.printf("Ban user: {0} id: {1} reason: CAS", [
-    helpers.get_fullname(from),
-    from.id |> int.to_string,
+  log.printf("Ctx: {0} Ban {1} reason: CAS", [
+    helpers.view_chat(chat),
+    helpers.view_user(from),
   ])
 
   api_calls.get_rid_of_user(ctx, from.id)

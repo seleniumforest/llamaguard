@@ -1,5 +1,4 @@
 import gleam/bool
-import gleam/int
 import gleam/list
 import gleam/option
 import gleam/result
@@ -117,8 +116,9 @@ pub fn checker(
 
       use <- bool.lazy_guard(!contains_banned, fn() { next(ctx, upd) })
 
-      log.printf("Ban user id: {0} reason: banned word in message or name", [
-        from_id |> int.to_string,
+      log.printf("Ctx: {0} Ban {1} reason: banned word in message or name", [
+        helpers.view_chat(message.chat),
+        helpers.view_sender(message),
       ])
 
       api_calls.get_rid_of_msg(ctx, message.message_id)

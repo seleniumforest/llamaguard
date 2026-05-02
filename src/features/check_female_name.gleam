@@ -1,5 +1,4 @@
 import gleam/bool
-import gleam/int
 import gleam/result
 import infra/alias.{type BotContext}
 import infra/api_calls
@@ -38,9 +37,9 @@ pub fn checker(
 
           use <- bool.lazy_guard(!is_female_name, fn() { next(ctx, upd) })
 
-          log.printf("Ban user: {0} id: {1} reason: woman", [
-            fullname,
-            int.to_string(member.user.id),
+          log.printf("Ctx: {0} Ban {1} reason: woman", [
+            helpers.view_chat(chat_member_updated.chat),
+            helpers.view_user(chat_member_updated.from),
           ])
 
           api_calls.get_rid_of_user(ctx, member.user.id)

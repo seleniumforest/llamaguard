@@ -154,9 +154,9 @@ fn handle_user(
         nxt
       })
 
-      log.printf("Ban user: {0} id: {1} reason: did not passed quarantine", [
-        helpers.get_fullname(from),
-        from.id |> int.to_string,
+      log.printf("Ctx: {0} Ban {1} reason: did not passed quarantine", [
+        helpers.view_chat(message.chat),
+        helpers.view_user(from),
       ])
 
       let _ =

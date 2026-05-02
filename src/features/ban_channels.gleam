@@ -1,5 +1,4 @@
 import gleam/bool
-import gleam/int
 import gleam/option.{None, Some}
 import gleam/result
 import infra/alias.{type BotContext}
@@ -47,13 +46,9 @@ pub fn checker(
             fn() { next(ctx, upd) },
           )
 
-          echo message.forward_origin
           log.printf(
-            "Ban chat {0} id {1} reason: restricted sending on behalf of a chat",
-            [
-              sc.title |> option.unwrap(""),
-              sc.id |> int.to_string,
-            ],
+            "Ctx: {0} Ban {1} reason: restricted sending on behalf of a chat",
+            [helpers.view_chat(message.chat), helpers.view_chat(sc)],
           )
 
           api_calls.get_rid_of_msg(ctx, message.message_id)

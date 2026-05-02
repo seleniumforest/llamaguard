@@ -1,5 +1,4 @@
 import gleam/bool
-import gleam/int
 import gleam/list
 import gleam/option.{type Option, None, Some}
 import gleam/regexp
@@ -119,12 +118,8 @@ pub fn checker(
               case message.sender_chat, message.from {
                 Some(sc), _ -> {
                   log.printf(
-                    "Ban channel: {0} id: {1} message: {2} reason: restricted language symbols.",
-                    [
-                      sc.title |> option.unwrap(""),
-                      sc.id |> int.to_string,
-                      text,
-                    ],
+                    "Ban {0} message: {1} reason: restricted language symbols.",
+                    [helpers.view_chat(sc), text],
                   )
 
                   let _ = api_calls.get_rid_of_chat(ctx, sc)

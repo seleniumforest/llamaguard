@@ -4,7 +4,6 @@ import gleam/string
 import gleam/time/calendar
 import gleam/time/timestamp
 
-//todo try to make data generic
 pub fn format(format: String, data: List(String)) -> String {
   format_loop(format, data, 0)
 }
@@ -28,9 +27,17 @@ pub fn print_err(format: String) {
 fn with_datetime(str: String) -> String {
   let now =
     timestamp.system_time()
-    |> timestamp.to_rfc3339(calendar.utc_offset)
+    |> timestamp.to_calendar(calendar.utc_offset)
 
-  format("[{0}]: {1}", [now, str])
+  format("[{0} {1} {2} {3}:{4}:{5}]: {6}", [
+    now.0.day |> int.to_string,
+    now.0.month |> calendar.month_to_string,
+    now.0.year |> int.to_string,
+    now.1.hours |> int.to_string,
+    now.1.minutes |> int.to_string,
+    now.1.seconds |> int.to_string,
+    str,
+  ])
 }
 
 fn format_loop(format: String, data: List(String), depth: Int) -> String {
@@ -38,7 +45,7 @@ fn format_loop(format: String, data: List(String), depth: Int) -> String {
     [] -> format
     [first, ..rest] ->
       format_loop(
-        string.replace(format, "{" <> depth |> int.to_string <> "}", first),
+        string.replace(format, "{" <> int.to_string(depth) <> "}", first),
         rest,
         depth + 1,
       )

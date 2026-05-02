@@ -1,5 +1,4 @@
 import gleam/bool
-import gleam/int
 import gleam/list
 import gleam/option.{None, Some}
 import gleam/result
@@ -66,11 +65,10 @@ fn handle_message(
 ) {
   case message.sender_chat {
     Some(sc) -> {
-      log.printf("Delete message from chat: {0} id: {1} reason: {2}", [
-        sc.title |> option.unwrap(""),
-        sc.id |> int.to_string,
-        "hiding under chat's account",
-      ])
+      log.printf(
+        "Ctx: {0} Delete message from {1} reason: hiding under chat's account",
+        [helpers.view_chat(message.chat), helpers.view_chat(sc)],
+      )
 
       api_calls.get_rid_of_msg(ctx, message.message_id)
       |> result.try(fn(_) { api_calls.get_rid_of_chat(ctx, sc) })
@@ -101,9 +99,9 @@ fn handle_message(
             _, _ -> ""
           }
 
-          log.printf("Delete message from user: {0} id: {1} reason: {2}", [
-            helpers.try_get_fullname(message.from),
-            member.user.id |> int.to_string,
+          log.printf("Ctx: {0} Delete message from {1} reason: {2}", [
+            helpers.view_chat(message.chat),
+            helpers.view_user(member.user),
             reason,
           ])
 
@@ -130,9 +128,9 @@ fn handle_reaction(
 
   case message_reaction_updated.user, message_reaction_updated.actor_chat {
     _, Some(actor_chat) -> {
-      log.printf("Ban channel: {0} id: {1} reason: anon reaction as channel", [
-        actor_chat.title |> option.unwrap(""),
-        actor_chat.id |> int.to_string,
+      log.printf("Ctx: {0} Ban {1} reason: anon reaction as a channel", [
+        helpers.view_chat(message_reaction_updated.chat),
+        helpers.view_chat(actor_chat),
       ])
 
       api_calls.get_rid_of_chat(ctx, actor_chat)
@@ -143,9 +141,9 @@ fn handle_reaction(
       |> result.try(fn(x) {
         case x {
           types.ChatMemberLeftChatMember(member) -> {
-            log.printf("Ban user: {0} id: {1} reason: non-member reaction", [
-              helpers.get_fullname(member.user),
-              member.user.id |> int.to_string,
+            log.printf("Ctx: {0} Ban {1} reason: non-member reaction", [
+              helpers.view_chat(message_reaction_updated.chat),
+              helpers.view_user(member.user),
             ])
 
             api_calls.get_rid_of_user(ctx, member.user.id)
