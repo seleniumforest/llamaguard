@@ -29,11 +29,11 @@ pub fn get_chat(actor: Subject(StorageMessage), chat_id: Int) {
 pub fn save_chat_property(
   actor: Subject(StorageMessage),
   id: Int,
-  prop: String,
+  path: List(String),
   val: json.Json,
 ) {
   process.call_forever(actor, fn(a) {
-    SaveProperty(a, int.to_string(id), prop, val)
+    SaveProperty(a, int.to_string(id), path, val)
   })
 }
 

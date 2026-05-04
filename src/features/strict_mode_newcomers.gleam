@@ -27,7 +27,7 @@ pub fn command(ctx: BotContext, cmd: Command) -> Result(BotContext, BotError) {
       use _ <- result.try(cs_storage.save_chat_property(
         ctx.session.db,
         ctx.update.chat_id,
-        "strict_mode_newcomers",
+        ["strict_mode_newcomers"],
         json.int(arg),
       ))
 
@@ -48,7 +48,7 @@ pub fn command(ctx: BotContext, cmd: Command) -> Result(BotContext, BotError) {
           use _ <- result.try(cs_storage.save_chat_property(
             ctx.session.db,
             ctx.update.chat_id,
-            "strict_mode_newcomers",
+            ["strict_mode_newcomers"],
             json.int(0),
           ))
 
@@ -131,7 +131,7 @@ fn handle_user(
             ctx.session.db,
             from.id,
             message.chat.id,
-            "on_quarantine",
+            ["on_quarantine"],
             json.bool(False),
           )
         next(ctx, upd)
@@ -147,7 +147,7 @@ fn handle_user(
             ctx.session.db,
             from.id,
             message.chat.id,
-            "messages",
+            ["messages"],
             json.int(uc.messages + 1),
           )
 

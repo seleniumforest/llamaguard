@@ -99,7 +99,7 @@ fn process_id(ctx: BotContext, id: String) {
   cs_storage.save_chat_property(
     ctx.session.db,
     ctx.update.chat_id,
-    "trusted_users",
+    ["trusted_users"],
     json.array(new_trusted_users, json.string),
   )
   |> result.try(fn(_) {
@@ -180,7 +180,7 @@ fn check_is_trusted(
           ctx.session.db,
           upd.from_id,
           upd.chat_id,
-          "on_quarantine",
+          ["on_quarantine"],
           json.bool(False),
         )
 

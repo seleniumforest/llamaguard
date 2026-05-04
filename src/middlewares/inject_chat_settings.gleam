@@ -90,7 +90,7 @@ fn validate_admin_list(
     cs_storage.save_chat_property(
       ctx.session.db,
       ctx.update.chat_id,
-      "admins_list",
+      ["admins_list"],
       cached.cacheify(new_admins, fn(data) { json.array(data, json.int) }),
     )
     |> result.try(fn(_) {

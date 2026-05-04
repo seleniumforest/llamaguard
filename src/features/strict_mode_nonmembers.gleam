@@ -13,7 +13,7 @@ import telega/update.{type Command, type Update}
 pub fn command(ctx: BotContext, _cmd: Command) -> Result(BotContext, BotError) {
   helpers.flip_bool_setting_and_reply(
     ctx,
-    "strict_mode_nonmembers",
+    ["strict_mode_nonmembers"],
     fn(cs) { cs.strict_mode_nonmembers },
     "Success: strict mode (no media, links, reactions, female name) for non-members enabled",
     "Success: strict mode for non-members disabled",

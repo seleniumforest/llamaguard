@@ -45,11 +45,11 @@ pub fn save_user_chat_property(
   actor: Subject(StorageMessage),
   user_id: Int,
   chat_id: Int,
-  prop: String,
+  path: List(String),
   val: json.Json,
 ) {
   process.call_forever(actor, fn(a) {
-    SaveProperty(a, build_key(user_id, chat_id), prop, val)
+    SaveProperty(a, build_key(user_id, chat_id), path, val)
   })
 }
 

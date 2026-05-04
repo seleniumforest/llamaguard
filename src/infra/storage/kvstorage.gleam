@@ -3,6 +3,7 @@ import gleam/erlang/process.{type Subject}
 import gleam/json
 import gleam/list
 import gleam/otp/actor
+import gleam/string
 import models/error.{type BotError, DbConnectionError, EmptyDataError}
 import sqlight
 
@@ -17,7 +18,7 @@ pub type StorageMessage {
   SaveProperty(
     reply_with: Subject(Result(Bool, BotError)),
     id: String,
-    prop: String,
+    path: List(String),
     val: json.Json,
   )
 }
@@ -56,9 +57,11 @@ fn handle_message(
       actor.continue(connection)
     }
 
-    SaveProperty(reply_with:, id:, prop:, val:) -> {
+    SaveProperty(reply_with:, id:, path:, val:) -> {
+      let path = path |> string.join(".")
+
       let sql = "UPDATE data 
-            SET value = json_set(value, '$." <> prop <> "', json(?)) 
+            SET value = json_set(value, '$." <> path <> "', json(?)) 
             WHERE key = ?;"
 
       let serialized = val |> json.to_string |> sqlight.text

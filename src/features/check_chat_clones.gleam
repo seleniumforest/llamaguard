@@ -15,7 +15,7 @@ import telega/update.{type Command, type Update}
 pub fn command(ctx: BotContext, _cmd: Command) -> Result(BotContext, BotError) {
   helpers.flip_bool_setting_and_reply(
     ctx,
-    "check_chat_clones",
+    ["check_chat_clones"],
     fn(cs) { cs.check_chat_clones },
     "Success: bot will try to find accounts whose name is similar to chat title",
     "Success: bot will NOT try to find accounts whose name is similar to chat title",

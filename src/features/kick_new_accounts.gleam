@@ -43,7 +43,7 @@ fn set_state(ctx: BotContext, current_state: Int, new_state: Int) {
   cs_storage.save_chat_property(
     ctx.session.db,
     ctx.update.chat_id,
-    "kick_new_accounts",
+    ["kick_new_accounts"],
     json.int(new_state),
   )
   |> result.try(fn(_) {

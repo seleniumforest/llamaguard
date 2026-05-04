@@ -41,7 +41,7 @@ pub fn command(ctx: BotContext, cmd: Command) -> Result(BotContext, BotError) {
             cs_storage.save_chat_property(
               ctx.session.db,
               ctx.update.chat_id,
-              "banned_languages",
+              ["banned_languages"],
               json.array(new_list, json.string),
             )
             |> result.try(fn(_) {

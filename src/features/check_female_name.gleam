@@ -11,7 +11,7 @@ import telega/update.{type Command, type Update}
 pub fn command(ctx: BotContext, _cmd: Command) -> Result(BotContext, BotError) {
   helpers.flip_bool_setting_and_reply(
     ctx,
-    "check_female_name",
+    ["check_female_name"],
     fn(cs) { cs.check_female_name },
     "Success: bot will kick joining accounts with ENG/RU female name",
     "Success: bot will NOT kick joining accounts with ENG/RU female name",

@@ -12,7 +12,7 @@ import telega/update.{type Command, type Update}
 pub fn command(ctx: BotContext, _cmd: Command) -> Result(BotContext, BotError) {
   helpers.flip_bool_setting_and_reply(
     ctx,
-    "cas_enabled",
+    ["cas_enabled"],
     fn(cs) { cs.cas_enabled },
     "Success: bot will use Combot's anti-spam lists for joining users and linked channel's comments",
     "Success: bot won't use Combot's anti-spam lists anymore",

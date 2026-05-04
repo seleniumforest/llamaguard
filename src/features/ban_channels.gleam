@@ -11,7 +11,7 @@ import telega/update.{type Command, type Update}
 pub fn command(ctx: BotContext, _cmd: Command) -> Result(BotContext, BotError) {
   helpers.flip_bool_setting_and_reply(
     ctx,
-    "ban_channels",
+    ["ban_channels"],
     fn(cs) { cs.ban_channels },
     "Success: sending messages on behalf of a channel was restricted",
     "Success: sending messages on behalf of a channel was allowed",

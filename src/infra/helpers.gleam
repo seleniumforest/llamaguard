@@ -18,7 +18,7 @@ import telega/model/types.{type Message}
 
 pub fn flip_bool_setting_and_reply(
   ctx: BotContext,
-  setting_name: String,
+  setting_name: List(String),
   setting_selector: fn(chat_settings.ChatSettings) -> Bool,
   on_msg: String,
   off_msg: String,

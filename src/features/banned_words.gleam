@@ -18,7 +18,7 @@ import telega/update.{type Command, type Update}
 pub fn command(ctx: BotContext, _cmd: Command) -> Result(BotContext, BotError) {
   helpers.flip_bool_setting_and_reply(
     ctx,
-    "check_banned_words",
+    ["check_banned_words"],
     fn(cs) { cs.check_banned_words },
     "Success: bot will ban users for banned words",
     "Success: bot will NOT ban users for banned words",
@@ -55,7 +55,7 @@ pub fn add_or_remove_words(
       cs_storage.save_chat_property(
         ctx.session.db,
         ctx.update.chat_id,
-        "banned_words",
+        ["banned_words"],
         json.array(new_words, json.string),
       )
       |> result.try(fn(_) {
