@@ -1,5 +1,6 @@
 import gleam/bool
 import gleam/int
+import gleam/json
 import gleam/option.{None, Some}
 import gleam/result
 import infra/alias.{type BotContext}
@@ -9,7 +10,6 @@ import infra/helpers
 import infra/log
 import infra/reply.{reply, replyf}
 import infra/storage/chat_settings as cs_storage
-import infra/storage/kvstorage.{Int, Value}
 import models/error.{type BotError}
 import telega/model/types
 import telega/update.{type Command, type Update, ChatMemberUpdate}
@@ -44,7 +44,7 @@ fn set_state(ctx: BotContext, current_state: Int, new_state: Int) {
     ctx.session.db,
     ctx.update.chat_id,
     "kick_new_accounts",
-    Value(Int(new_state)),
+    json.int(new_state),
   )
   |> result.try(fn(_) {
     case new_state {

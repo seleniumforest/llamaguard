@@ -18,19 +18,8 @@ pub type StorageMessage {
     reply_with: Subject(Result(Bool, BotError)),
     id: String,
     prop: String,
-    val: JsonDbValue,
+    val: json.Json,
   )
-}
-
-pub type ValueType {
-  Int(val: Int)
-  Bool(val: Bool)
-  String(val: String)
-}
-
-pub type JsonDbValue {
-  Value(val: ValueType)
-  Array(val: List(ValueType))
 }
 
 pub fn init() -> Subject(StorageMessage) {
@@ -47,31 +36,6 @@ pub fn init() -> Subject(StorageMessage) {
 fn string_decoder() {
   use id <- decode.field(0, decode.string)
   decode.success(id)
-}
-
-fn sqlize_val(val: ValueType) -> sqlight.Value {
-  case val {
-    Bool(val:) -> sqlight.bool(val)
-    Int(val:) -> sqlight.int(val)
-    String(val:) -> sqlight.text(val)
-  }
-}
-
-fn sqlize_list(ls: List(ValueType)) -> sqlight.Value {
-  case ls {
-    [] -> sqlight.text("[]")
-    _ -> {
-      json.array(ls, fn(x) {
-        case x {
-          Bool(val:) -> json.bool(val)
-          Int(val:) -> json.int(val)
-          String(val:) -> json.string(val)
-        }
-      })
-      |> json.to_string
-      |> sqlight.text
-    }
-  }
 }
 
 fn handle_message(
@@ -93,27 +57,17 @@ fn handle_message(
     }
 
     SaveProperty(reply_with:, id:, prop:, val:) -> {
-      let #(val, sql) = case val {
-        Array(vals) -> {
-          let sql = "UPDATE data 
+      let sql = "UPDATE data 
             SET value = json_set(value, '$." <> prop <> "', json(?)) 
             WHERE key = ?;"
-          #(sqlize_list(vals), sql)
-        }
-        Value(val) -> {
-          let sql = "UPDATE data 
-            SET value = json_set(value, '$." <> prop <> "', ?) 
-            WHERE key = ?;"
 
-          #(sqlize_val(val), sql)
-        }
-      }
+      let serialized = val |> json.to_string |> sqlight.text
 
       let query =
         sqlight.query(
           sql,
           on: connection,
-          with: [val, sqlight.text(id)],
+          with: [serialized, sqlight.text(id)],
           expecting: decode.dynamic,
         )
 

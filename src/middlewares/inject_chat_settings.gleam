@@ -1,7 +1,7 @@
 import gleam/bool
 import gleam/int
+import gleam/json
 import gleam/list
-import gleam/option
 import gleam/result
 import gleam/string
 import infra/alias.{type BotContext}
@@ -9,8 +9,8 @@ import infra/api_calls
 import infra/helpers
 import infra/log
 import infra/storage/chat_settings as cs_storage
-import infra/storage/kvstorage.{Array, Int, Value}
 import models/bot_session.{BotSession}
+import models/cached
 import models/chat_settings.{type ChatSettings}
 import models/error
 import telega/bot
@@ -68,7 +68,7 @@ fn validate_admin_list(
 ) -> Result(ChatSettings, error.BotError) {
   let is_private_chat = upd.chat_id > 0
   let now = helpers.now()
-  let cache_expired = chat_settings.admins_last_upd + cache_ttl_sec < now
+  let cache_expired = chat_settings.admins_list.updated_at + cache_ttl_sec < now
 
   use <- bool.lazy_guard(is_private_chat || !cache_expired, fn() {
     Ok(chat_settings)
@@ -85,25 +85,18 @@ fn validate_admin_list(
         }
       })
 
+    let new_admins = cached.Cached(updated_at: now, value: admin_ids)
+
     cs_storage.save_chat_property(
       ctx.session.db,
       ctx.update.chat_id,
-      "admins_id_list",
-      Array(admin_ids |> list.map(fn(x) { Int(x) })),
+      "admins_list",
+      cached.cacheify(new_admins, fn(data) { json.array(data, json.int) }),
     )
-    |> result.try(fn(_) {
-      cs_storage.save_chat_property(
-        ctx.session.db,
-        ctx.update.chat_id,
-        "admins_last_upd",
-        Value(Int(now)),
-      )
-    })
     |> result.try(fn(_) {
       chat_settings.ChatSettings(
         ..chat_settings,
-        admins_id_list: option.Some(admin_ids),
-        admins_last_upd: now,
+        admins_list: cached.Cached(updated_at: now, value: admin_ids),
       )
       |> Ok
     })

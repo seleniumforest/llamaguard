@@ -4,7 +4,7 @@ import gleam/json
 import gleam/result
 import infra/log
 import infra/storage/kvstorage.{
-  type JsonDbValue, type StorageMessage, Create, Delete, Get, SaveProperty,
+  type StorageMessage, Create, Delete, Get, SaveProperty,
 }
 import models/error.{type BotError, InvalidValueError}
 import models/user_chat as uc
@@ -46,7 +46,7 @@ pub fn save_user_chat_property(
   user_id: Int,
   chat_id: Int,
   prop: String,
-  val: JsonDbValue,
+  val: json.Json,
 ) {
   process.call_forever(actor, fn(a) {
     SaveProperty(a, build_key(user_id, chat_id), prop, val)

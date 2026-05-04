@@ -1,4 +1,5 @@
 import gleam/bool
+import gleam/json
 import gleam/list
 import gleam/option.{type Option, None, Some}
 import gleam/regexp
@@ -11,7 +12,6 @@ import infra/helpers
 import infra/log
 import infra/reply.{reply}
 import infra/storage/chat_settings as cs_storage
-import infra/storage/kvstorage.{Array, String}
 import infra/storage/user_chat as uc_repo
 import models/error.{type BotError}
 import telega/update.{type Command}
@@ -42,7 +42,7 @@ pub fn command(ctx: BotContext, cmd: Command) -> Result(BotContext, BotError) {
               ctx.session.db,
               ctx.update.chat_id,
               "banned_languages",
-              Array(new_list |> list.map(fn(x) { String(x) })),
+              json.array(new_list, json.string),
             )
             |> result.try(fn(_) {
               reply(
@@ -118,8 +118,12 @@ pub fn checker(
               case message.sender_chat, message.from {
                 Some(sc), _ -> {
                   log.printf(
-                    "Ban {0} message: {1} reason: restricted language symbols.",
-                    [helpers.view_chat(sc), text],
+                    "Ctx: {0} Ban {1} message: {2} reason: restricted language symbols.",
+                    [
+                      helpers.view_chat(message.chat),
+                      helpers.view_chat(sc),
+                      text,
+                    ],
                   )
 
                   let _ = api_calls.get_rid_of_chat(ctx, sc)
@@ -127,10 +131,10 @@ pub fn checker(
                 }
                 _, Some(from) -> {
                   log.printf(
-                    "Ban user: {0} id: {1} message: {2} reason: restricted language symbols.",
+                    "Ctx: {0} Ban {1} message: {2} reason: restricted language symbols.",
                     [
-                      helpers.get_fullname(from),
-                      from.id |> string.inspect,
+                      helpers.view_chat(message.chat),
+                      helpers.view_user(from),
                       text,
                     ],
                   )

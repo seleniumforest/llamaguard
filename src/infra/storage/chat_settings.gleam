@@ -3,9 +3,7 @@ import gleam/int
 import gleam/json
 import gleam/result
 import infra/log
-import infra/storage/kvstorage.{
-  type JsonDbValue, type StorageMessage, Create, Get, SaveProperty,
-}
+import infra/storage/kvstorage.{type StorageMessage, Create, Get, SaveProperty}
 import models/chat_settings as cs
 import models/error.{type BotError, InvalidValueError}
 
@@ -32,7 +30,7 @@ pub fn save_chat_property(
   actor: Subject(StorageMessage),
   id: Int,
   prop: String,
-  val: JsonDbValue,
+  val: json.Json,
 ) {
   process.call_forever(actor, fn(a) {
     SaveProperty(a, int.to_string(id), prop, val)

@@ -1,5 +1,6 @@
 import gleam/bool
 import gleam/int
+import gleam/json
 import gleam/list
 import gleam/option.{None, Some}
 import gleam/result
@@ -10,7 +11,6 @@ import infra/helpers
 import infra/log
 import infra/reply.{reply, replyf}
 import infra/storage/chat_settings as cs_storage
-import infra/storage/kvstorage.{Bool, Int, Value}
 import infra/storage/user_chat as uc_repo
 import models/error.{type BotError}
 import telega/model/types
@@ -28,7 +28,7 @@ pub fn command(ctx: BotContext, cmd: Command) -> Result(BotContext, BotError) {
         ctx.session.db,
         ctx.update.chat_id,
         "strict_mode_newcomers",
-        Value(Int(arg)),
+        json.int(arg),
       ))
 
       case arg {
@@ -49,7 +49,7 @@ pub fn command(ctx: BotContext, cmd: Command) -> Result(BotContext, BotError) {
             ctx.session.db,
             ctx.update.chat_id,
             "strict_mode_newcomers",
-            Value(Int(0)),
+            json.int(0),
           ))
 
           reply(ctx, "Success: strict mode for non-members disabled")
@@ -132,7 +132,7 @@ fn handle_user(
             from.id,
             message.chat.id,
             "on_quarantine",
-            False |> Bool |> Value,
+            json.bool(False),
           )
         next(ctx, upd)
       })
@@ -148,7 +148,7 @@ fn handle_user(
             from.id,
             message.chat.id,
             "messages",
-            uc.messages + 1 |> Int |> Value,
+            json.int(uc.messages + 1),
           )
 
         nxt

@@ -14,7 +14,7 @@ pub fn user_chat_encoder(uc: UserChat) {
   json.object([
     #("joined_time", json.int(uc.joined_time)),
     #("messages", json.int(uc.messages)),
-    #("on_quarantine", decode.bool_as_int_encoder(uc.on_quarantine)),
+    #("on_quarantine", json.bool(uc.on_quarantine)),
   ])
 }
 

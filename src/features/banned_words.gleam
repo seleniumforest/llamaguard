@@ -1,4 +1,5 @@
 import gleam/bool
+import gleam/json
 import gleam/list
 import gleam/option
 import gleam/result
@@ -10,7 +11,6 @@ import infra/helpers
 import infra/log
 import infra/reply.{reply}
 import infra/storage/chat_settings as cs_storage
-import infra/storage/kvstorage.{Array, String}
 import models/error.{type BotError}
 import telega/update.{type Command, type Update}
 
@@ -56,7 +56,7 @@ pub fn add_or_remove_words(
         ctx.session.db,
         ctx.update.chat_id,
         "banned_words",
-        Array(new_words |> list.map(fn(x) { String(x) })),
+        json.array(new_words, json.string),
       )
       |> result.try(fn(_) {
         reply(

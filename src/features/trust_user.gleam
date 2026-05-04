@@ -1,5 +1,6 @@
 import gleam/bool
 import gleam/int
+import gleam/json
 import gleam/list
 import gleam/option.{None, Some}
 import gleam/result
@@ -9,7 +10,6 @@ import infra/helpers.{match_ids}
 import infra/log
 import infra/reply.{reply}
 import infra/storage/chat_settings as cs_storage
-import infra/storage/kvstorage.{Array, Bool, String, Value}
 import infra/storage/user_chat as uc_repo
 import models/error.{type BotError}
 import telega/model/types
@@ -90,7 +90,6 @@ fn process_id(ctx: BotContext, id: String) {
         |> list.filter(fn(x) { match_ids(x, id) |> bool.negate })
     }
     |> list.unique
-    |> list.map(fn(x) { String(x) })
 
   let is_id = case int.parse(id) {
     Ok(_) -> True
@@ -101,7 +100,7 @@ fn process_id(ctx: BotContext, id: String) {
     ctx.session.db,
     ctx.update.chat_id,
     "trusted_users",
-    Array(new_trusted_users),
+    json.array(new_trusted_users, json.string),
   )
   |> result.try(fn(_) {
     let msg = case already_exists, is_id {
@@ -120,9 +119,9 @@ pub fn checker(
   next: fn(BotContext, update.Update) -> Nil,
 ) -> Nil {
   //admins are trusted by default
-  let is_admin = case ctx.session.chat_settings.admins_id_list {
-    None -> False
-    Some(ls) -> list.contains(ls, ctx.update.from_id)
+  let is_admin = case ctx.session.chat_settings.admins_list.value {
+    [] -> False
+    ls -> list.contains(ls, ctx.update.from_id)
   }
 
   use <- bool.guard(is_admin, Nil)
@@ -182,7 +181,7 @@ fn check_is_trusted(
           upd.from_id,
           upd.chat_id,
           "on_quarantine",
-          False |> Bool |> Value,
+          json.bool(False),
         )
 
       next(ctx, upd)

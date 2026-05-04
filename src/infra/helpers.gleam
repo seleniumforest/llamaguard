@@ -1,5 +1,6 @@
 import gleam/bool
 import gleam/int
+import gleam/json
 import gleam/list
 import gleam/option.{type Option, None, Some}
 import gleam/regexp
@@ -11,7 +12,6 @@ import infra/ffi/unicode
 import infra/log
 import infra/reply.{reply}
 import infra/storage/chat_settings as cs_storage
-import infra/storage/kvstorage.{Bool, Value}
 import models/chat_settings
 import models/error.{type BotError}
 import telega/model/types.{type Message}
@@ -30,7 +30,7 @@ pub fn flip_bool_setting_and_reply(
     ctx.session.db,
     ctx.update.chat_id,
     setting_name,
-    Value(Bool(new_state)),
+    json.bool(new_state),
   )
   |> result.try(fn(_) {
     reply(ctx, case new_state {
