@@ -155,7 +155,9 @@ pub fn checker(
             }
             Error(err) -> {
               log.printf_err(
-                "WARN: Could not build regexp to check message for banned languages. Skipping check for banned languages. regexp_str: {0}, banned_languages: {1}, err:{2}",
+                "WARN: Could not build regexp to check message for banned languages. "
+                  <> "Skipping check for banned languages. "
+                  <> "regexp_str: {0}, banned_languages: {1}, err:{2}",
                 [
                   regexp_str,
                   ctx.session.chat_settings.banned_languages |> string.inspect,

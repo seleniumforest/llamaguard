@@ -16,6 +16,7 @@ pub type ChatSettings {
     banned_languages: List(String),
     trusted_users: List(String),
     admins_list: Cached(List(Int)),
+    linked_channel_id: Cached(Int),
     cas_enabled: Bool,
     ban_channels: Bool,
   )
@@ -33,6 +34,7 @@ pub fn default() {
     trusted_users: [],
     banned_languages: [],
     admins_list: Cached(0, []),
+    linked_channel_id: Cached(0, 0),
     cas_enabled: False,
     strict_mode_newcomers: 0,
     ban_channels: False,
@@ -57,6 +59,10 @@ pub fn chat_encoder(chat: ChatSettings) {
       "admins_list",
       cached.cacheify(chat.admins_list, fn(obj) { json.array(obj, json.int) }),
     ),
+    #(
+      "linked_channel_id",
+      cached.cacheify(chat.linked_channel_id, fn(obj) { json.int(obj) }),
+    ),
   ])
 }
 
@@ -77,6 +83,10 @@ pub fn chat_decoder() {
     "admins_list",
     dyn_decode.list(dyn_decode.int),
   )
+  use linked_channel_id <- cached.decacheify(
+    "linked_channel_id",
+    dyn_decode.int,
+  )
 
   dyn_decode.success(ChatSettings(
     kick_new_accounts:,
@@ -92,5 +102,6 @@ pub fn chat_decoder() {
     ban_channels:,
     banned_languages:,
     admins_list:,
+    linked_channel_id:,
   ))
 }
