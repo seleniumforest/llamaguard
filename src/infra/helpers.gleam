@@ -63,19 +63,18 @@ pub fn view_chat(chat: types.Chat) {
 }
 
 pub fn view_user(user: types.User) {
-  log.format("[{0} {1} (id:{2})]", [
-    user.first_name,
-    user.last_name |> option.unwrap(""),
+  log.format("[{0} (id:{1})]", [
+    get_fullname(user),
     user.id |> int.to_string,
   ])
 }
 
-pub fn view_sender(msg: types.Message) {
+pub fn view_sender(msg: Message) {
   handle_sender(msg, view_user, view_chat, fn() { "<no sender>" })
 }
 
 pub fn handle_sender(
-  msg: types.Message,
+  msg: Message,
   on_user: fn(types.User) -> a,
   on_channel: fn(types.Chat) -> a,
   fallback: fn() -> a,
@@ -204,4 +203,19 @@ pub fn is_trusted(
 
     match_by_id || match_by_username
   })
+}
+
+pub fn is_trusted_sender(trusted_users: List(String), message: Message) {
+  let #(id, username) = case message.sender_chat, message.from {
+    Some(sc), None -> #(sc.id, sc.username)
+    None, Some(from) -> #(from.id, from.username)
+    //when post from linked channel is forwarded to linked chat, sender_chat is a channel and from is id:777000
+    Some(_sc), Some(from) -> #(from.id, from.username)
+    _, _ -> {
+      log.print_err("WARN: this code should be unreachable (trust_user)")
+      #(0, Some(""))
+    }
+  }
+
+  is_trusted(trusted_users, id, username)
 }

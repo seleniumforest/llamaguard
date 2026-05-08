@@ -1,3 +1,4 @@
+import gleam/bool
 import gleam/dynamic/decode
 import gleam/erlang/process.{type Subject}
 import gleam/json
@@ -62,7 +63,8 @@ fn handle_message(
 
       let sql = "UPDATE data 
             SET value = json_set(value, '$." <> path <> "', json(?)) 
-            WHERE key = ?;"
+            WHERE key = ?
+            RETURNING 1;"
 
       let serialized = val |> json.to_string |> sqlight.text
 
@@ -71,12 +73,15 @@ fn handle_message(
           sql,
           on: connection,
           with: [serialized, sqlight.text(id)],
-          expecting: decode.dynamic,
+          expecting: decode.field(0, decode.int, fn(x) { decode.success(x) }),
         )
 
       case query {
         Error(e) -> process.send(reply_with, Error(DbConnectionError(e)))
-        Ok(_) -> process.send(reply_with, Ok(True))
+        Ok(rows) -> {
+          let is_found_and_updated = rows |> list.is_empty |> bool.negate
+          process.send(reply_with, Ok(is_found_and_updated))
+        }
       }
 
       actor.continue(connection)
@@ -103,7 +108,7 @@ fn handle_message(
       let key = sqlight.text(id)
 
       let query =
-        "DELETE FROM data WHERE key = ?;"
+        "DELETE FROM data WHERE key = ? RETURNING key;"
         |> sqlight.query(
           on: connection,
           with: [key],
@@ -112,7 +117,10 @@ fn handle_message(
 
       case query {
         Error(e) -> process.send(reply_with, Error(DbConnectionError(e)))
-        Ok(_) -> process.send(reply_with, Ok(True))
+        Ok(rows) -> {
+          let is_found_and_deleted = rows |> list.is_empty |> bool.negate
+          process.send(reply_with, Ok(is_found_and_deleted))
+        }
       }
 
       actor.continue(connection)

@@ -66,10 +66,9 @@ pub fn checker(
       case message.sender_chat {
         Some(sc) -> {
           use <- bool.lazy_guard(
-            helpers.is_trusted(
+            helpers.is_trusted_sender(
               ctx.session.chat_settings.trusted_users,
-              sc.id,
-              sc.username,
+              message,
             ),
             fn() { next(ctx, upd) },
           )

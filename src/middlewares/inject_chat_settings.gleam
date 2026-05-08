@@ -37,6 +37,11 @@ pub fn inject_chat_settings(db) {
           )
 
           handler(ctx, update)
+          //not sure what to return when it should never happen
+          //if THIS branch reached, maybe ask user to remove bot and add it again???
+          //or maybe add command /reset which resets all the settings???  
+
+          //Ok(ctx)
         }
         Ok(chat_settings) -> {
           let session = BotSession(..ctx.session, chat_settings:, db:)
@@ -51,7 +56,7 @@ pub fn inject_chat_settings(db) {
               log.printf_err(
                 "ERROR: Could not revalidate caches for chat {0} errors: {1} "
                   <> "Some data may be stalled. If you see A LOT of these messages, "
-                  <> "this is NOT normal behaviour, but 1-3 messages are probably ok.",
+                  <> "this is NOT normal behaviour, but rare 1-2 messages are ok.",
                 [ctx.update.chat_id |> string.inspect, errors |> string.inspect],
               )
               handler(new_ctx, update)

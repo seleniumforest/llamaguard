@@ -114,28 +114,34 @@ fn handle_user(
     Ok(uc) -> {
       use <- bool.lazy_guard(!uc.on_quarantine, fn() { next(ctx, upd) })
 
-      let is_trusted_sender =
-        helpers.is_trusted(
-          ctx.session.chat_settings.trusted_users,
-          upd.from_id,
-          from.username,
-        )
+      // let is_trusted_sender =
+      //   helpers.is_trusted(
+      //     ctx.session.chat_settings.trusted_users,
+      //     upd.from_id,
+      //     from.username,
+      //   )
 
-      let enough_messages =
-        uc.messages >= ctx.session.chat_settings.strict_mode_newcomers
+      // let enough_messages =
+      //   uc.messages >= ctx.session.chat_settings.strict_mode_newcomers
 
-      use <- bool.lazy_guard(is_trusted_sender || enough_messages, fn() {
-        let _ =
-          //case when user was trusted AFTER joining and BEFORE passing quarantine
-          uc_repo.save_user_chat_property(
-            ctx.session.db,
-            from.id,
-            message.chat.id,
-            ["on_quarantine"],
-            json.bool(False),
-          )
-        next(ctx, upd)
-      })
+      // use <- bool.lazy_guard(is_trusted_sender || enough_messages, fn() {
+      //   //case when user was trusted AFTER joining and BEFORE passing quarantine
+      //   uc_repo.save_user_chat_property(
+      //     ctx.session.db,
+      //     from.id,
+      //     message.chat.id,
+      //     ["on_quarantine"],
+      //     json.bool(False),
+      //   )
+      //   |> result.map(fn(found_and_updated) {
+      //     use <- bool.guard(!found_and_updated, Nil)
+      //     log.printf(
+      //       "Ctx: {0} User {1} is on trust list, no need to quarantine him",
+      //       [],
+      //     )
+      //   })
+      //   |> result.lazy_unwrap(fn() { next(ctx, upd) })
+      // })
 
       let has_restricted = helpers.has_restricted_content(message)
       use <- bool.lazy_guard(!has_restricted, fn() {

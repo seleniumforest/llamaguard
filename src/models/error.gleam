@@ -11,5 +11,6 @@ pub type BotError {
   //storage errors
   InvalidValueError(json.DecodeError)
   DbConnectionError(sqlight.Error)
+  DbUpdateError
   EmptyDataError
 }
