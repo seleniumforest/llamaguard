@@ -19,7 +19,7 @@ import infra/alias.{type BotContext}
 import infra/log
 import infra/storage/kvstorage
 import middlewares/check_is_admin.{check_is_admin}
-import middlewares/inject_chat_settings.{inject_chat_settings}
+import middlewares/inject_context.{inject_chat_settings, inject_user_chat}
 import middlewares/newcomers_events.{newcomers_events}
 import middlewares/resources.{inject_resources}
 import models/bot_session
@@ -38,6 +38,7 @@ pub fn main() {
   let router =
     router.new("default")
     |> router.use_middleware(inject_chat_settings(db))
+    |> router.use_middleware(inject_user_chat())
     |> router.use_middleware(inject_resources(resources))
     |> router.use_middleware(check_is_admin())
     |> router.use_middleware(newcomers_events())

@@ -3,7 +3,7 @@ import gleam/http/request
 import gleam/httpc
 import gleam/int
 import gleam/json
-import gleam/option
+import gleam/option.{Some}
 import gleam/result
 import gleam/string
 import infra/alias.{type BotContext}
@@ -22,7 +22,7 @@ pub fn get_rid_of_user(ctx: BotContext, user_id: Int) {
       chat_id: Int(ctx.update.chat_id),
       user_id:,
       until_date: option.None,
-      revoke_messages: option.Some(True),
+      revoke_messages: Some(True),
     ),
   )
   |> result.map_error(log_err)
@@ -82,18 +82,24 @@ pub fn check_cas(user_id: Int) -> Bool {
     log.print_err(e |> string.inspect)
     error.CasCheckError(e)
   })
-  |> result.try(fn(x) { x.body |> decode |> Ok() })
+  |> result.try(fn(x) { x.body |> decode_offences |> Ok() })
   |> result.unwrap(False)
 }
 
-fn decode(str: String) -> Bool {
+fn decode_offences(str: String) -> Bool {
   let ok_decoder = {
     use ok <- decode.field("ok", decode.bool)
-    decode.success(ok)
+    case ok {
+      True -> {
+        use offences <- decode.subfield(["result", "offences"], decode.int)
+        decode.success(offences)
+      }
+      False -> decode.failure(0, "")
+    }
   }
 
   case json.parse(str, ok_decoder) {
-    Ok(val) -> val
+    Ok(val) -> val > 0
     Error(_) -> False
   }
 }

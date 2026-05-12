@@ -14,7 +14,7 @@ import infra/reply.{reply}
 import infra/storage/chat_settings as cs_storage
 import models/chat_settings
 import models/error.{type BotError}
-import telega/model/types.{type Message}
+import telega/model/types.{type Message, type MessageEntity}
 
 pub fn flip_bool_setting_and_reply(
   ctx: BotContext,
@@ -39,6 +39,12 @@ pub fn flip_bool_setting_and_reply(
     })
   })
   |> result.try(fn(_) { Ok(ctx) })
+}
+
+pub fn is_forwarded_msg(msg: Message) {
+  msg.reply_to_message
+  |> option.then(fn(rtm) { rtm.is_automatic_forward })
+  |> option.unwrap(False)
 }
 
 pub fn get_fullname(user: types.User) {
@@ -126,6 +132,14 @@ pub fn match_ids(id1: String, id2: String) {
   }
 }
 
+const allowed_entities = ["phone_number", "date_time"]
+
+fn filter_entities(entities: Option(List(MessageEntity))) {
+  entities
+  |> option.unwrap([])
+  |> list.filter(fn(x) { !list.contains(allowed_entities, x.type_) })
+}
+
 pub fn has_restricted_content(msg: Message) -> Bool {
   let is_audio = msg.audio |> option.is_some
   let is_photo = msg.photo |> option.is_some
@@ -138,10 +152,10 @@ pub fn has_restricted_content(msg: Message) -> Bool {
   let is_story = msg.story |> option.is_some
 
   let is_caption_entities =
-    msg.caption_entities |> option.unwrap([]) |> list.is_empty |> bool.negate
+    filter_entities(msg.caption_entities) |> list.is_empty |> bool.negate
 
   let has_entities =
-    msg.entities |> option.unwrap([]) |> list.is_empty |> bool.negate
+    filter_entities(msg.entities) |> list.is_empty |> bool.negate
 
   let contains_link = case regexp.from_string("https?://\\S+"), msg.text {
     Ok(url_regex), Some(text) -> {
@@ -178,7 +192,7 @@ pub fn has_restricted_content(msg: Message) -> Bool {
 
 const trusted_ids = [
   777_000,
-  136_817_688,
+  //136_817_688,
   42_777,
   1_087_968_824,
   1_271_266_957,
@@ -186,12 +200,14 @@ const trusted_ids = [
   5_304_255_346,
 ]
 
-pub fn is_trusted(
+pub fn is_trusted_id(
   trusted_users: List(String),
   user_id: Int,
   username: option.Option(String),
-) {
+  linked_channel_id: Int,
+) -> Bool {
   use <- bool.guard(list.contains(trusted_ids, user_id), True)
+  use <- bool.guard(linked_channel_id == user_id, True)
 
   trusted_users
   |> list.any(fn(x) {
@@ -205,17 +221,30 @@ pub fn is_trusted(
   })
 }
 
-pub fn is_trusted_sender(trusted_users: List(String), message: Message) {
-  let #(id, username) = case message.sender_chat, message.from {
-    Some(sc), None -> #(sc.id, sc.username)
-    None, Some(from) -> #(from.id, from.username)
+pub fn is_trusted_sender(
+  trusted_users: List(String),
+  linked_channel_id: Int,
+  message: Message,
+) {
+  echo message.sender_chat
+  echo message.from
+  let result = case message.sender_chat, message.from {
     //when post from linked channel is forwarded to linked chat, sender_chat is a channel and from is id:777000
-    Some(_sc), Some(from) -> #(from.id, from.username)
+    //when user writes on behalf of a channel in a chat, sender_chat is a channel and from is id:136817688 (Channel_Bot)
+    Some(sc), Some(from) if from.id == 777_000 || from.id == 136_817_688 -> {
+      is_trusted_id(trusted_users, sc.id, sc.username, linked_channel_id)
+    }
+    None, Some(from) ->
+      is_trusted_id(trusted_users, from.id, from.username, linked_channel_id)
+    Some(sc), None ->
+      is_trusted_id(trusted_users, sc.id, sc.username, linked_channel_id)
     _, _ -> {
-      log.print_err("WARN: this code should be unreachable (trust_user)")
-      #(0, Some(""))
+      log.print_err(
+        "WARN: this code should be unreachable (fn: is_trusted_sender). Some shit may happened",
+      )
+      False
     }
   }
-
-  is_trusted(trusted_users, id, username)
+  echo result
+  result
 }

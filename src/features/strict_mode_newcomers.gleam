@@ -110,42 +110,40 @@ fn handle_user(
   from: types.User,
 ) -> Nil {
   let userchat = uc_repo.get_user_chat(ctx.session.db, from.id, message.chat.id)
+  let next = fn() { next(ctx, upd) }
   case userchat {
     Ok(uc) -> {
-      use <- bool.lazy_guard(!uc.on_quarantine, fn() { next(ctx, upd) })
+      use <- bool.lazy_guard(!uc.on_quarantine, next)
 
-      // let is_trusted_sender =
-      //   helpers.is_trusted(
-      //     ctx.session.chat_settings.trusted_users,
-      //     upd.from_id,
-      //     from.username,
-      //   )
+      let enough_messages =
+        uc.messages >= ctx.session.chat_settings.strict_mode_newcomers
 
-      // let enough_messages =
-      //   uc.messages >= ctx.session.chat_settings.strict_mode_newcomers
-
-      // use <- bool.lazy_guard(is_trusted_sender || enough_messages, fn() {
-      //   //case when user was trusted AFTER joining and BEFORE passing quarantine
-      //   uc_repo.save_user_chat_property(
-      //     ctx.session.db,
-      //     from.id,
-      //     message.chat.id,
-      //     ["on_quarantine"],
-      //     json.bool(False),
-      //   )
-      //   |> result.map(fn(found_and_updated) {
-      //     use <- bool.guard(!found_and_updated, Nil)
-      //     log.printf(
-      //       "Ctx: {0} User {1} is on trust list, no need to quarantine him",
-      //       [],
-      //     )
-      //   })
-      //   |> result.lazy_unwrap(fn() { next(ctx, upd) })
-      // })
+      use <- bool.lazy_guard(enough_messages, fn() {
+        uc_repo.save_user_chat_property(
+          ctx.session.db,
+          from.id,
+          message.chat.id,
+          ["on_quarantine"],
+          json.bool(False),
+        )
+        |> result.map(fn(found_and_updated) {
+          case found_and_updated {
+            True -> "Ctx: {0} User {1} has passed quarantine"
+            False ->
+              "Ctx: {0} User {1} has passed quarantine, "
+              <> "but coudn't find his user_chat entry. Some shit may happen."
+          }
+          |> log.printf([
+            helpers.view_chat(message.chat),
+            helpers.view_sender(message),
+          ])
+        })
+        |> result.lazy_unwrap(next)
+      })
 
       let has_restricted = helpers.has_restricted_content(message)
       use <- bool.lazy_guard(!has_restricted, fn() {
-        let nxt = next(ctx, upd)
+        let nxt = next()
 
         //update only after all checks
         let _ =
@@ -160,13 +158,20 @@ fn handle_user(
         nxt
       })
 
-      log.printf("Ctx: {0} Ban {1} reason: did not passed quarantine", [
-        helpers.view_chat(message.chat),
-        helpers.view_user(from),
-      ])
-
       let _ =
         uc_repo.delete_user_chat(ctx.session.db, from.id, message.chat.id)
+        |> result.map(fn(res) {
+          case res {
+            True -> "Ctx: {0} Ban user {1} reason: did not passed quarantine"
+            False ->
+              "Ctx: {0} Ban user {1} reason: did not passed quarantine, "
+              <> "but coudn't find his user_chat entry. Some shit may happen."
+          }
+          |> log.printf([
+            helpers.view_chat(message.chat),
+            helpers.view_user(from),
+          ])
+        })
         |> result.try(fn(_) {
           api_calls.get_rid_of_msg(ctx, message.message_id)
         })
@@ -174,6 +179,6 @@ fn handle_user(
 
       Nil
     }
-    Error(_) -> next(ctx, upd)
+    Error(_) -> next()
   }
 }

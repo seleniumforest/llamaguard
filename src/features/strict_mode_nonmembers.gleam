@@ -7,7 +7,7 @@ import infra/api_calls
 import infra/helpers
 import infra/log
 import models/error.{type BotError}
-import telega/model/types
+import telega/model/types.{type ChatMemberLeft}
 import telega/update.{type Command, type Update}
 
 pub fn command(ctx: BotContext, _cmd: Command) -> Result(BotContext, BotError) {
@@ -38,13 +38,9 @@ pub fn checker(
     | update.VideoUpdate(message:, ..)
     | update.VoiceUpdate(message:, ..) -> {
       //check ONLY COMMENTS to posts on linked channel
-      let is_forward =
-        message.reply_to_message
-        |> option.map(fn(rtm) { rtm.is_automatic_forward })
-        |> option.flatten
-        |> option.unwrap(False)
-
-      use <- bool.lazy_guard(!is_forward, fn() { next(ctx, upd) })
+      use <- bool.lazy_guard(!helpers.is_forwarded_msg(message), fn() {
+        next(ctx, upd)
+      })
 
       handle_message(ctx, upd, message, next)
       |> result.lazy_unwrap(fn() { next(ctx, upd) })
@@ -99,7 +95,7 @@ fn handle_message(
             _, _ -> ""
           }
 
-          log.printf("Ctx: {0} Delete message from {1} reason: {2}", [
+          log.printf("Ctx: {0} Ban user {1} reason: {2}", [
             helpers.view_chat(message.chat),
             helpers.view_user(member.user),
             reason,
@@ -157,10 +153,7 @@ fn handle_reaction(
   }
 }
 
-fn has_suspicious_user_profile(
-  ctx: BotContext,
-  member: types.ChatMemberLeft,
-) -> Bool {
+fn has_suspicious_user_profile(ctx: BotContext, member: ChatMemberLeft) -> Bool {
   let check_username = member.user.username |> option.is_none
   let check_female_name = case ctx.session.chat_settings.check_female_name {
     False -> False

@@ -1,18 +1,20 @@
 import gleam/int
+import gleam/option
 import gleam/result
 import gleam/string
 import infra/alias.{type BotContext}
 import infra/cache_validation
 import infra/log
 import infra/storage/chat_settings as cs_storage
+import infra/storage/user_chat as uc_storage
 import models/bot_session.{BotSession}
 import models/error
-import telega/bot
-import telega/update
+import telega/bot.{Context}
+import telega/update.{type Update}
 
 pub fn inject_chat_settings(db) {
   fn(handler) {
-    fn(ctx: BotContext, update: update.Update) {
+    fn(ctx: BotContext, update: Update) {
       let chat =
         cs_storage.get_chat(db, ctx.update.chat_id)
         |> result.try_recover(fn(err) {
@@ -45,7 +47,7 @@ pub fn inject_chat_settings(db) {
         }
         Ok(chat_settings) -> {
           let session = BotSession(..ctx.session, chat_settings:, db:)
-          let first_injected_ctx = bot.Context(..ctx, session:)
+          let first_injected_ctx = Context(..ctx, session:)
 
           let #(new_ctx, errors) =
             cache_validation.validate_all(first_injected_ctx)
@@ -64,6 +66,23 @@ pub fn inject_chat_settings(db) {
           }
         }
       }
+    }
+  }
+}
+
+pub fn inject_user_chat() {
+  fn(handler) {
+    fn(ctx: BotContext, update: Update) {
+      let user_chat =
+        uc_storage.get_user_chat(
+          ctx.session.db,
+          ctx.update.from_id,
+          ctx.update.chat_id,
+        )
+        |> option.from_result()
+
+      let session = BotSession(..ctx.session, user_chat:)
+      handler(Context(..ctx, session:), update)
     }
   }
 }

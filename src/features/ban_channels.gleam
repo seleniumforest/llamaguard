@@ -68,6 +68,7 @@ pub fn checker(
           use <- bool.lazy_guard(
             helpers.is_trusted_sender(
               ctx.session.chat_settings.trusted_users,
+              ctx.session.chat_settings.linked_channel_id.value,
               message,
             ),
             fn() { next(ctx, upd) },

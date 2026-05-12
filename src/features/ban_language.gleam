@@ -84,7 +84,7 @@ pub fn checker(
     | update.VoiceUpdate(message:, ..) -> {
       let no_banned_langs = ctx.session.chat_settings.banned_languages == []
       let strict_mode_on = ctx.session.chat_settings.strict_mode_newcomers > 0
-      //TODO chats always on quarantine. Think how can we handle this
+      //TODO for now, chats always on quarantine. Think how can we handle this
       let is_sender_on_quarantine = case message.sender_chat {
         Some(_) -> True
         None ->
@@ -94,8 +94,11 @@ pub fn checker(
           }
       }
 
+      //let is_forward_to_check = helpers.is_forwarded_msg(message)
+
       use <- bool.lazy_guard(
         no_banned_langs || !is_sender_on_quarantine || !strict_mode_on,
+        //|| !is_forward_to_check,
         fn() { next(ctx, upd) },
       )
 
