@@ -66,7 +66,7 @@ pub fn get_chat(ctx: BotContext, chat_id: Int) {
 pub fn get_chat_administrators(ctx: BotContext, chat_id: Int) {
   api.get_chat_administrators(
     ctx.config.api_client,
-    GetChatAdministratorsParameters(Int(chat_id)),
+    GetChatAdministratorsParameters(Int(chat_id), Some(True)),
   )
   |> result.map_error(log_err)
 }
