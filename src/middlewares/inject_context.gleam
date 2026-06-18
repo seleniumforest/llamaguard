@@ -51,7 +51,7 @@ pub fn inject_chat_settings(db) {
 
           let #(new_ctx, errors) =
             cache_validation.validate_all(first_injected_ctx)
-
+          //echo errors
           case errors {
             [] -> handler(new_ctx, update)
             _ -> {

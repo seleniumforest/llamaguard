@@ -49,10 +49,11 @@ pub fn checker(
         option.None -> next(ctx, upd)
         option.Some(from) -> {
           //todo check all later with caching/export
-          case from.id == 777_000 {
-            True -> check_and_reply(ctx, upd, next, message.chat, from)
-            False -> next(ctx, upd)
-          }
+          // case from.id == 777_000 {
+          //   True -> check_and_reply(ctx, upd, next, message.chat, from)
+          //   False -> next(ctx, upd)
+          // }
+          check_and_reply(ctx, upd, next, message.chat, from)
         }
       }
     }
@@ -60,8 +61,14 @@ pub fn checker(
   }
 }
 
-fn check_and_reply(ctx, upd, next, chat: types.Chat, from: types.User) {
-  let is_cas_banned = api_calls.check_cas(from.id)
+fn check_and_reply(
+  ctx: BotContext,
+  upd,
+  next,
+  chat: types.Chat,
+  from: types.User,
+) {
+  let is_cas_banned = ctx.session.dependencies.cas_check(from.id)
   use <- bool.lazy_guard(!is_cas_banned, fn() { next(ctx, upd) })
 
   log.printf("Ctx: {0} Ban {1} reason: CAS", [

@@ -24,8 +24,8 @@ pub type StorageMessage {
   )
 }
 
-pub fn init() -> Subject(StorageMessage) {
-  let connection = init_db()
+pub fn init(db_path: String) -> Subject(StorageMessage) {
+  let connection = init_db(db_path)
 
   let assert Ok(actor) =
     actor.new(connection)
@@ -143,8 +143,8 @@ fn unwrap_query_to_settings(
   }
 }
 
-fn init_db() {
-  let assert Ok(conn) = sqlight.open("file:data.sqlite3")
+fn init_db(db_path: String) {
+  let assert Ok(conn) = sqlight.open(db_path)
 
   let init_query =
     "CREATE TABLE IF NOT EXISTS data (

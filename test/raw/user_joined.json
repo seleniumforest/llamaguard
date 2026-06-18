@@ -1,0 +1,46 @@
+{
+  "ok": true,
+  "result": [
+    {
+      "update_id": 771694324,
+      "chat_member": {
+        "chat": {
+          "id": -1003519676531,
+          "title": "test channel Chat",
+          "type": "supergroup"
+        },
+        "from": {
+          "id": 5971399759,
+          "is_bot": false,
+          "first_name": "K",
+          "username": "kt8763",
+          "language_code": "en",
+          "is_premium": true
+        },
+        "date": 1781427878,
+        "old_chat_member": {
+          "user": {
+            "id": 5971399759,
+            "is_bot": false,
+            "first_name": "K",
+            "username": "kt8763",
+            "language_code": "en",
+            "is_premium": true
+          },
+          "status": "left"
+        },
+        "new_chat_member": {
+          "user": {
+            "id": 5971399759,
+            "is_bot": false,
+            "first_name": "K",
+            "username": "kt8763",
+            "language_code": "en",
+            "is_premium": true
+          },
+          "status": "member"
+        }
+      }
+    }
+  ]
+}

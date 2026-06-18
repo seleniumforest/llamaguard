@@ -10,7 +10,6 @@ import infra/helpers.{match_ids}
 import infra/log
 import infra/reply.{reply}
 import infra/storage/chat_settings as cs_storage
-import infra/storage/user_chat as uc_repo
 import models/error.{type BotError}
 import telega/model/types
 import telega/update.{type Command}
@@ -130,103 +129,91 @@ pub fn checker(
   upd: update.Update,
   next: fn(BotContext, update.Update) -> Nil,
 ) -> Nil {
-  //admins are trusted by default
-  let is_admin =
-    list.contains(
-      ctx.session.chat_settings.admins_list.value,
-      ctx.update.from_id,
-    )
-
-  use <- bool.guard(is_admin, Nil)
-
-  case upd {
-    update.AudioUpdate(message:, ..)
-    | update.TextUpdate(message:, ..)
-    | update.VideoUpdate(message:, ..)
-    | update.VoiceUpdate(message:, ..)
-    | update.PhotoUpdate(message:, ..)
-    | update.MessageUpdate(message:, ..)
-    | update.WebAppUpdate(message:, ..)
-    | update.EditedMessageUpdate(message:, ..) -> {
-      let is_trusted =
-        helpers.is_trusted_sender(
-          ctx.session.chat_settings.trusted_users,
-          ctx.session.chat_settings.linked_channel_id.value,
-          message,
-        )
-
-      use <- bool.lazy_guard(!is_trusted, fn() { next(ctx, upd) })
-
-      //Get user off from quarantine on first message AFTER he was trusted. 
-      //We cannot do it in command /trustuser @username because we don't know his ID from command args
-      //and that's kind of unreliable to memoize @username because it could be changed
-      let is_on_quarantine = case ctx.session.user_chat {
-        Some(uc) -> uc.on_quarantine
-        None -> False
-      }
-
-      use <- bool.guard(!is_on_quarantine, Nil)
-
-      uc_repo.save_user_chat_property(
-        ctx.session.db,
-        upd.from_id,
-        upd.chat_id,
-        ["on_quarantine"],
-        json.bool(False),
-      )
-      |> result.map(fn(is_found_and_updated) {
-        case is_found_and_updated {
-          True ->
-            log.printf(
-              "Ctx: {0} Sender {1} appeared on trust list, trying to un-quarantine him",
-              [helpers.view_chat(message.chat), helpers.view_sender(message)],
-            )
-          False ->
-            log.printf(
-              "Ctx: {0} Sender {1} is on trust list, tried to un-quarantine him, "
-                <> "but haven't found his record. Some shit may happened",
-              [helpers.view_chat(message.chat), helpers.view_sender(message)],
-            )
-        }
-      })
-      |> result.unwrap(Nil)
-    }
-    update.ChatMemberUpdate(chat_member_updated:, ..) -> {
-      case chat_member_updated.new_chat_member {
-        types.ChatMemberMemberChatMember(member) -> {
-          let is_trusted =
-            helpers.is_trusted_id(
-              ctx.session.chat_settings.trusted_users,
-              member.user.id,
-              member.user.username,
-              ctx.session.chat_settings.linked_channel_id.value,
-            )
-
-          use <- bool.lazy_guard(!is_trusted, fn() { next(ctx, upd) })
-
-          //see first comment 
-          uc_repo.save_user_chat_property(
-            ctx.session.db,
-            member.user.id,
-            upd.chat_id,
-            ["on_quarantine"],
-            json.bool(False),
-          )
-          |> result.map(fn(found_and_updated) {
-            use <- bool.guard(!found_and_updated, Nil)
-            log.printf(
-              "Ctx: {0} User {1} has entered the chat, he's on trust list, no need to quarantine him.",
-              [
-                helpers.view_chat(chat_member_updated.chat),
-                helpers.view_user(member.user),
-              ],
-            )
-          })
-          |> result.unwrap(Nil)
-        }
-        _ -> next(ctx, upd)
-      }
-    }
-    _ -> next(ctx, upd)
+  case ctx.session.is_trusted_sender {
+    True -> Nil
+    False -> next(ctx, upd)
   }
 }
+// pub fn checker(
+//   ctx: BotContext,
+//   upd: update.Update,
+//   next: fn(BotContext, update.Update) -> Nil,
+// ) -> Nil {
+//   use <- bool.lazy_guard(!ctx.session.is_trusted_sender, fn() { next(ctx, upd) })
+
+//   case upd {
+//     update.AudioUpdate(message:, ..)
+//     | update.TextUpdate(message:, ..)
+//     | update.VideoUpdate(message:, ..)
+//     | update.VoiceUpdate(message:, ..)
+//     | update.PhotoUpdate(message:, ..)
+//     | update.MessageUpdate(message:, ..)
+//     | update.WebAppUpdate(message:, ..)
+//     | update.EditedMessageUpdate(message:, ..) -> {
+//       //Get user off from quarantine on first message AFTER he was trusted. 
+//       //We cannot do it in command /trustuser @username because we don't know his ID from command args
+//       //and that's kind of unreliable to memoize @username because it could be changed
+//       let is_on_quarantine = case ctx.session.user_chat {
+//         Some(uc) -> uc.on_quarantine
+//         None -> False
+//       }
+
+//       use <- bool.guard(!is_on_quarantine, Nil)
+
+//       uc_repo.save_user_chat_property(
+//         ctx.session.db,
+//         upd.from_id,
+//         upd.chat_id,
+//         ["on_quarantine"],
+//         json.bool(False),
+//       )
+//       |> result.map(fn(is_found_and_updated) {
+//         case is_found_and_updated {
+//           True ->
+//             log.printf(
+//               "Ctx: {0} Sender {1} appeared on trust list, trying to un-quarantine him",
+//               [helpers.view_chat(message.chat), helpers.view_sender(message)],
+//             )
+//           False ->
+//             log.printf(
+//               "Ctx: {0} Sender {1} is on trust list, tried to un-quarantine him, "
+//                 <> "but haven't found his record. Some shit may happened",
+//               [helpers.view_chat(message.chat), helpers.view_sender(message)],
+//             )
+//         }
+//       })
+//       |> result.unwrap(Nil)
+//     }
+//     update.ChatMemberUpdate(chat_member_updated:, ..) -> {
+//       case chat_member_updated.new_chat_member {
+//         types.ChatMemberMemberChatMember(member) -> {
+//           use <- bool.lazy_guard(!ctx.session.is_trusted_sender, fn() {
+//             next(ctx, upd)
+//           })
+
+//           //see first comment 
+//           uc_repo.save_user_chat_property(
+//             ctx.session.db,
+//             member.user.id,
+//             upd.chat_id,
+//             ["on_quarantine"],
+//             json.bool(False),
+//           )
+//           |> result.map(fn(found_and_updated) {
+//             use <- bool.guard(!found_and_updated, Nil)
+//             log.printf(
+//               "Ctx: {0} User {1} has entered the chat, he's on trust list, no need to quarantine him.",
+//               [
+//                 helpers.view_chat(chat_member_updated.chat),
+//                 helpers.view_user(member.user),
+//               ],
+//             )
+//           })
+//           |> result.unwrap(Nil)
+//         }
+//         _ -> next(ctx, upd)
+//       }
+//     }
+//     _ -> next(ctx, upd)
+//   }
+// }

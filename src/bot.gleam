@@ -18,10 +18,11 @@ import gleam/string
 import infra/alias.{type BotContext}
 import infra/log
 import infra/storage/kvstorage
-import middlewares/check_is_admin.{check_is_admin}
+import middlewares/dependencies.{inject_dependencies}
 import middlewares/inject_context.{inject_chat_settings, inject_user_chat}
 import middlewares/newcomers_events.{newcomers_events}
 import middlewares/resources.{inject_resources}
+import middlewares/setup_permissions.{setup_permissions}
 import models/bot_session
 import models/error.{type BotError}
 import telega
@@ -32,15 +33,16 @@ import telega_httpc
 
 pub fn main() {
   dot.new() |> dot.load
-  let db = kvstorage.init()
+  let db = kvstorage.init("file:data.sqlite3")
   let resources = resources.load_static_resources()
 
   let router =
     router.new("default")
+    |> router.use_middleware(inject_dependencies())
     |> router.use_middleware(inject_chat_settings(db))
     |> router.use_middleware(inject_user_chat())
     |> router.use_middleware(inject_resources(resources))
-    |> router.use_middleware(check_is_admin())
+    |> router.use_middleware(setup_permissions())
     |> router.use_middleware(newcomers_events())
     |> router.on_custom(fn(_) { True }, handle_update)
     |> router.on_command("kickNewAccounts", kick_new_accounts.command)
@@ -92,6 +94,7 @@ pub fn main() {
 }
 
 fn handle_update(ctx: BotContext, upd: Update) -> Result(BotContext, BotError) {
+  //echo upd
   process.spawn_unlinked(fn() {
     //skip handling from admins, linked channel and trusted list. Always comes first
     use ctx, upd <- trust_user.checker(ctx, upd)

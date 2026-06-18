@@ -1,0 +1,82 @@
+{
+  "ok": true,
+  "result": {
+    "id": -1003519676531,
+    "title": "test channel Chat",
+    "type": "supergroup",
+    "invite_link": "https://t.me/+qg_bGSZ42p1hMWYy",
+    "has_visible_history": true,
+    "permissions": {
+      "can_send_messages": true,
+      "can_send_media_messages": true,
+      "can_send_audios": true,
+      "can_send_documents": true,
+      "can_send_photos": true,
+      "can_send_videos": true,
+      "can_send_video_notes": true,
+      "can_send_voice_notes": true,
+      "can_send_polls": true,
+      "can_send_other_messages": true,
+      "can_add_web_page_previews": true,
+      "can_react_to_messages": true,
+      "can_edit_tag": false,
+      "can_change_info": false,
+      "can_invite_users": false,
+      "can_pin_messages": false,
+      "can_manage_topics": false
+    },
+    "linked_chat_id": -1002821928697,
+    "accepted_gift_types": {
+      "unlimited_gifts": false,
+      "limited_gifts": false,
+      "unique_gifts": false,
+      "premium_subscription": false,
+      "gifts_from_channels": false
+    },
+    "pinned_message": {
+      "message_id": 2545,
+      "from": {
+        "id": 777000,
+        "is_bot": false,
+        "first_name": "Telegram"
+      },
+      "sender_chat": {
+        "id": -1002821928697,
+        "title": "test channel",
+        "username": "alpacatestch",
+        "type": "channel"
+      },
+      "chat": {
+        "id": -1003519676531,
+        "title": "test channel Chat",
+        "type": "supergroup"
+      },
+      "date": 1781375654,
+      "forward_origin": {
+        "type": "channel",
+        "chat": {
+          "id": -1002821928697,
+          "title": "test channel",
+          "username": "alpacatestch",
+          "type": "channel"
+        },
+        "message_id": 48,
+        "author_signature": "alpaca",
+        "date": 1781375651
+      },
+      "is_automatic_forward": true,
+      "forward_from_chat": {
+        "id": -1002821928697,
+        "title": "test channel",
+        "username": "alpacatestch",
+        "type": "channel"
+      },
+      "forward_from_message_id": 48,
+      "forward_signature": "alpaca",
+      "forward_date": 1781375651,
+      "text": "post in the channel]"
+    },
+    "max_reaction_count": 11,
+    "accent_color_id": 0
+  }
+}

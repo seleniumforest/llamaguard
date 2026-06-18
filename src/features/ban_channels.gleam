@@ -65,14 +65,9 @@ pub fn checker(
     | update.VoiceUpdate(message:, ..) -> {
       case message.sender_chat {
         Some(sc) -> {
-          use <- bool.lazy_guard(
-            helpers.is_trusted_sender(
-              ctx.session.chat_settings.trusted_users,
-              ctx.session.chat_settings.linked_channel_id.value,
-              message,
-            ),
-            fn() { next(ctx, upd) },
-          )
+          use <- bool.lazy_guard(ctx.session.is_trusted_sender, fn() {
+            next(ctx, upd)
+          })
 
           log.printf(
             "Ctx: {0} Ban {1} reason: restricted sending on behalf of a chat",
