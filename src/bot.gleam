@@ -29,6 +29,7 @@ import telega/bot.{SessionSettings}
 import telega/polling
 import telega/router
 import telega/update.{type Update}
+import telega_httpc
 
 pub fn main() {
   dot.new() |> dot.load
@@ -57,8 +58,9 @@ pub fn main() {
     |> router.on_commands(["help", "start"], help.command)
 
   let assert Ok(token) = env.get_string("BOT_TOKEN")
+  let client = telega_httpc.new(token:)
   let assert Ok(bot) =
-    telega.new_for_polling(token:)
+    telega.new_for_polling(client)
     |> telega.with_router(router)
     //|> telega.set_drop_pending_updates(True)
     |> telega.with_catch_handler(fn(_ctx, err) {
@@ -72,29 +74,21 @@ pub fn main() {
         default_session: fn() { bot_session.default(db) },
       ),
     )
+    |> telega.with_polling_config(20, 100, 1000)
+    |> telega.set_allowed_updates([
+      "message",
+      "edited_message",
+      "channel_post",
+      "edited_channel_post",
+      "message_reaction",
+      "inline_query",
+      "chosen_inline_result",
+      "chat_member",
+      "callback_query",
+    ])
     |> telega.init_for_polling()
-
-  let assert Ok(poller) =
-    polling.start_polling_with_offset(
-      bot,
-      -1,
-      timeout: 20,
-      limit: 100,
-      allowed_updates: [
-        "message",
-        "edited_message",
-        "channel_post",
-        "edited_channel_post",
-        "message_reaction",
-        "inline_query",
-        "chosen_inline_result",
-        "chat_member",
-        "callback_query",
-      ],
-      poll_interval: 1000,
-    )
-
-  polling.wait_finish(poller)
+  
+  process.sleep_forever()
 }
 
 fn handle_update(ctx: BotContext, upd: Update) -> Result(BotContext, BotError) {

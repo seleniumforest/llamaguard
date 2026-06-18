@@ -98,8 +98,14 @@ pub fn checker(
         no_banned_langs || !is_sender_on_quarantine || !strict_mode_on,
         fn() { next(ctx, upd) },
       )
+      
+      let sender_name = case message.sender_chat, message.from {
+        Some(sc), _ -> sc.title |> option.unwrap("")
+        None, Some(from) -> helpers.get_fullname(from)
+        _, _ -> ""
+      }
 
-      case join_string_opts(message.text, message.caption) {
+      case join_string_opts(message.text, message.caption)  {
         Some(text) -> {
           let regexp_str =
             "["
@@ -110,7 +116,7 @@ pub fn checker(
 
           case regexp.from_string(regexp_str) {
             Ok(reg) -> {
-              let check_result = regexp.check(reg, text)
+              let check_result = regexp.check(reg, text <> " " <> sender_name)
               use <- bool.lazy_guard(!check_result, fn() { next(ctx, upd) })
 
               let _ = api_calls.get_rid_of_msg(ctx, message.message_id)

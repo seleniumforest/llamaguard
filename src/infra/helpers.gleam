@@ -14,7 +14,7 @@ import infra/storage/chat_settings as cs_storage
 import infra/storage/kvstorage.{Bool, Value}
 import models/chat_settings
 import models/error.{type BotError}
-import telega/model/types.{type Message}
+import telega/model/types.{type Message, type MessageEntity}
 
 pub fn flip_bool_setting_and_reply(
   ctx: BotContext,
@@ -127,6 +127,14 @@ pub fn match_ids(id1: String, id2: String) {
   }
 }
 
+const allowed_entities = ["phone_number", "date_time"]
+
+fn filter_entities(entities: Option(List(MessageEntity))) {
+  entities
+  |> option.unwrap([])
+  |> list.filter(fn(x) { !list.contains(allowed_entities, x.type_) })
+}
+
 pub fn has_restricted_content(msg: Message) -> Bool {
   let is_audio = msg.audio |> option.is_some
   let is_photo = msg.photo |> option.is_some
@@ -137,13 +145,16 @@ pub fn has_restricted_content(msg: Message) -> Bool {
   let is_sticker = msg.sticker |> option.is_some
   let is_quote = msg.quote |> option.is_some
   let is_story = msg.story |> option.is_some
+  let is_shared_contact = msg.contact |> option.is_some
+  let is_shared_via_bot = msg.via_bot |> option.is_some
+  let is_guest_bot = msg.guest_bot_caller_user |> option.is_some
 
   let is_caption_entities =
-    msg.caption_entities |> option.unwrap([]) |> list.is_empty |> bool.negate
+    filter_entities(msg.caption_entities) |> list.is_empty |> bool.negate
 
   let has_entities =
-    msg.entities |> option.unwrap([]) |> list.is_empty |> bool.negate
-
+    filter_entities(msg.entities) |> list.is_empty |> bool.negate
+  
   let contains_link = case regexp.from_string("https?://\\S+"), msg.text {
     Ok(url_regex), Some(text) -> {
       regexp.scan(with: url_regex, content: text)
@@ -175,6 +186,9 @@ pub fn has_restricted_content(msg: Message) -> Bool {
   || contains_emoji
   || is_quote
   || is_story
+  || is_shared_contact
+  || is_shared_via_bot
+  || is_guest_bot
 }
 
 const trusted_ids = [

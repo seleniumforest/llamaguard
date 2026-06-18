@@ -185,7 +185,7 @@ fn check_is_trusted(
           False |> Bool |> Value,
         )
 
-      next(ctx, upd)
+      Nil
     }
   }
 }

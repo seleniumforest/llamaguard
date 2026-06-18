@@ -29,6 +29,7 @@ pub fn get_rid_of_user(ctx: BotContext, user_id: Int) {
 }
 
 pub fn get_rid_of_msg(ctx: BotContext, message_id: Int) {
+  echo "Delete msg:" <> message_id |> int.to_string
   api.delete_message(
     ctx.config.api_client,
     types.DeleteMessageParameters(
@@ -66,7 +67,7 @@ pub fn get_chat(ctx: BotContext, chat_id: Int) {
 pub fn get_chat_administrators(ctx: BotContext, chat_id: Int) {
   api.get_chat_administrators(
     ctx.config.api_client,
-    GetChatAdministratorsParameters(Int(chat_id)),
+    GetChatAdministratorsParameters(Int(chat_id), option.Some(True)),
   )
   |> result.map_error(log_err)
 }
