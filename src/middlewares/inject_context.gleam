@@ -4,6 +4,7 @@ import gleam/result
 import gleam/string
 import infra/alias.{type BotContext}
 import infra/cache_validation
+import infra/helpers
 import infra/log
 import infra/storage/chat_settings as cs_storage
 import infra/storage/user_chat as uc_storage
@@ -73,12 +74,10 @@ pub fn inject_chat_settings(db) {
 pub fn inject_user_chat() {
   fn(handler) {
     fn(ctx: BotContext, update: Update) {
+      let #(sender_id, _) = helpers.get_real_sender_by_upd(update)
+
       let user_chat =
-        uc_storage.get_user_chat(
-          ctx.session.db,
-          ctx.update.from_id,
-          ctx.update.chat_id,
-        )
+        uc_storage.get_user_chat(ctx.session.db, sender_id, ctx.update.chat_id)
         |> option.from_result()
 
       let session = BotSession(..ctx.session, user_chat:)

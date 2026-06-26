@@ -80,6 +80,59 @@ pub fn view_sender(msg: Message) {
   handle_sender(msg, view_user, view_chat, fn() { "<no sender>" })
 }
 
+pub fn get_visible_text(msg: Message) {
+  let title =
+    handle_sender(
+      msg,
+      get_fullname,
+      fn(chat) { chat.title |> option.unwrap("") },
+      fn() { "" },
+    )
+
+  string.join(
+    [msg.text |> option.unwrap(""), msg.caption |> option.unwrap(""), title],
+    " ",
+  )
+  |> string.trim
+}
+
+pub fn has_msg(
+  upd: update.Update,
+  fallback: fn() -> a,
+  has_msg: fn(Message) -> a,
+) {
+  case upd {
+    update.TextUpdate(message:, ..)
+    | update.AudioUpdate(message:, ..)
+    | update.EditedMessageUpdate(message:, ..)
+    | update.MessageUpdate(message:, ..)
+    | update.PhotoUpdate(message:, ..)
+    | update.VideoUpdate(message:, ..)
+    | update.VoiceUpdate(message:, ..) -> has_msg(message)
+    _ -> fallback()
+  }
+}
+
+// pub fn apply_for(
+//   ctx: BotContext,
+//   upd: update.Update,
+//   next: fn(BotContext, update.Update) -> Nil,
+//   non_members: Bool,
+//   newcomers: Bool,
+//   channels: Bool,
+//   handler: fn() -> Nil,
+// ) {
+//   let is_newcomer = case ctx.session.user_chat {
+//     Some(uc) -> uc.on_quarantine
+//     None -> False
+//   }
+
+//   let #(sender_id, _) = get_real_sender_by_upd(upd)
+//   let is_channel = sender_id < 0
+
+//   let is_nonmember = 
+// }
+
 pub fn handle_sender(
   msg: Message,
   on_user: fn(types.User) -> a,
@@ -87,8 +140,10 @@ pub fn handle_sender(
   fallback: fn() -> a,
 ) {
   case msg.sender_chat, msg.from {
-    Some(sc), None -> on_channel(sc)
+    Some(sc), Some(from) if from.id == 777_000 || from.id == 136_817_688 ->
+      on_channel(sc)
     None, Some(from) -> on_user(from)
+    Some(sc), None -> on_channel(sc)
     _, _ -> fallback()
   }
 }
@@ -329,8 +384,7 @@ pub fn get_real_sender_by_upd(upd: Update) -> #(Int, Option(String)) {
 // pub fn handle(
 //   ctx: BotContext,
 //   upd: Update,
-//   next: fn(BotContext, Update) -> Nil,
-//   if_newcomer: fn() -> Nil,
+//   if_quarantine: fn() -> Nil,
 //   if_chat: fn() -> Nil,
 //   if_nonmember: fn() -> Nil,
 // ) {
@@ -341,13 +395,12 @@ pub fn get_real_sender_by_upd(upd: Update) -> #(Int, Option(String)) {
 //     | update.PhotoUpdate(message:, ..)
 //     | update.TextUpdate(message:, ..)
 //     | update.VideoUpdate(message:, ..)
-//     | update.VoiceUpdate(message:, ..)
-//     | update.CommandUpdate(message:, ..) -> {
+//     | update.VoiceUpdate(message:, ..) -> {
 //       let on_quarantine = case ctx.session.user_chat {
 //         Some(uc) -> uc.on_quarantine
 //         None -> False
 //       }
-//       use <- bool.guard(on_quarantine, if_newcomer)
+//       use <- bool.guard(on_quarantine, if_quarantine())
 
 //       todo
 //     }

@@ -123,17 +123,16 @@ fn process_id(ctx: BotContext, id: String) {
     reply(ctx, log.format(msg, [id]))
   })
 }
-
-pub fn checker(
-  ctx: BotContext,
-  upd: update.Update,
-  next: fn(BotContext, update.Update) -> Nil,
-) -> Nil {
-  case ctx.session.is_trusted_sender {
-    True -> Nil
-    False -> next(ctx, upd)
-  }
-}
+// pub fn checker(
+//   ctx: BotContext,
+//   upd: update.Update,
+//   next: fn(BotContext, update.Update) -> Nil,
+// ) -> Nil {
+//   case ctx.session.is_trusted_sender {
+//     True -> Nil
+//     False -> next(ctx, upd)
+//   }
+// }
 // pub fn checker(
 //   ctx: BotContext,
 //   upd: update.Update,

@@ -33,6 +33,7 @@ pub fn setup_permissions() {
             is_admin:,
             is_trusted_sender: is_trusted || is_linked_channel || is_admin,
             is_private_chat:,
+            real_sender:,
           ),
         )
 

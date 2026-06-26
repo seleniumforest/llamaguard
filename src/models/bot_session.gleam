@@ -13,6 +13,7 @@ pub type BotSession(storage_message) {
     is_trusted_sender: Bool,
     is_admin: Bool,
     is_private_chat: Bool,
+    real_sender: #(Int, Option(String)),
   )
 }
 
@@ -36,5 +37,6 @@ pub fn default(db: Subject(storage_message)) {
     dependencies: Deps(cas_check: fn(_) {
       panic as "ERR: cas_check was not injected! Some shit happened"
     }),
+    real_sender: #(0, None),
   )
 }

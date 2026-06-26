@@ -97,10 +97,9 @@ fn handle_update(ctx: BotContext, upd: Update) -> Result(BotContext, BotError) {
   //echo upd
   process.spawn_unlinked(fn() {
     //skip handling from admins, linked channel and trusted list. Always comes first
-    use ctx, upd <- trust_user.checker(ctx, upd)
+    //use ctx, upd <- trust_user.checker(ctx, upd)
     //checker to count newcomers' messages
     use ctx, upd <- strict_mode_newcomers.checker(ctx, upd)
-
     use ctx, upd <- ban_channels.checker(ctx, upd)
     use ctx, upd <- kick_new_accounts.checker(ctx, upd)
     use ctx, upd <- check_chat_clones.checker(ctx, upd)

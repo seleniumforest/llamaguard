@@ -1,7 +1,7 @@
 import gleam/bool
 import gleam/json
 import gleam/list
-import gleam/option.{type Option, None, Some}
+import gleam/option.{None, Some}
 import gleam/regexp
 import gleam/result
 import gleam/string
@@ -74,114 +74,76 @@ pub fn checker(
   upd: update.Update,
   next: fn(BotContext, update.Update) -> Nil,
 ) -> Nil {
-  case upd {
-    update.AudioUpdate(message:, ..)
-    | update.BusinessMessageUpdate(message:, ..)
-    | update.EditedMessageUpdate(message:, ..)
-    | update.PhotoUpdate(message:, ..)
-    | update.TextUpdate(message:, ..)
-    | update.VideoUpdate(message:, ..)
-    | update.VoiceUpdate(message:, ..) -> {
-      let no_banned_langs = ctx.session.chat_settings.banned_languages == []
-      let strict_mode_on = ctx.session.chat_settings.strict_mode_newcomers > 0
-      //TODO for now, chats always on quarantine. Think how can we handle this
-      let is_sender_on_quarantine = case message.sender_chat {
-        Some(_) -> True
-        None ->
-          case uc_repo.get_user_chat(ctx.session.db, upd.from_id, upd.chat_id) {
-            Ok(uc) -> uc.on_quarantine
-            Error(_) -> False
-          }
+  let next = fn() { next(ctx, upd) }
+  use <- bool.lazy_guard(ctx.session.is_trusted_sender, next)
+  use <- bool.lazy_guard(ctx.session.chat_settings.banned_languages == [], next)
+
+  use message <- helpers.has_msg(upd, next)
+
+  //TODO for now, chats always on quarantine. Think how can we handle this
+  let is_sender_on_quarantine = case ctx.session.user_chat {
+    Some(uc) -> uc.on_quarantine
+    None ->
+      case ctx.session.real_sender {
+        #(id, _) if id < 0 -> True
+        _ -> False
       }
-
-      //let is_forward_to_check = helpers.is_forwarded_msg(message)
-
-      use <- bool.lazy_guard(
-        no_banned_langs || !is_sender_on_quarantine || !strict_mode_on,
-        //|| !is_forward_to_check,
-        fn() { next(ctx, upd) },
-      )
-
-      case join_string_opts(message.text, message.caption) {
-        Some(text) -> {
-          let regexp_str =
-            "["
-            <> ctx.session.chat_settings.banned_languages
-            |> list.map(fn(x) { "\\p{Script_Extensions=" <> x <> "}" })
-            |> string.join("")
-            <> "]"
-
-          case regexp.from_string(regexp_str) {
-            Ok(reg) -> {
-              let check_result = regexp.check(reg, text)
-              use <- bool.lazy_guard(!check_result, fn() { next(ctx, upd) })
-
-              let _ = api_calls.get_rid_of_msg(ctx, message.message_id)
-
-              case message.sender_chat, message.from {
-                Some(sc), _ -> {
-                  log.printf(
-                    "Ctx: {0} Ban {1} message: {2} reason: restricted language symbols.",
-                    [
-                      helpers.view_chat(message.chat),
-                      helpers.view_chat(sc),
-                      text,
-                    ],
-                  )
-
-                  let _ = api_calls.get_rid_of_chat(ctx, sc)
-                  Nil
-                }
-                _, Some(from) -> {
-                  log.printf(
-                    "Ctx: {0} Ban {1} message: {2} reason: restricted language symbols.",
-                    [
-                      helpers.view_chat(message.chat),
-                      helpers.view_user(from),
-                      text,
-                    ],
-                  )
-
-                  let _ =
-                    uc_repo.delete_user_chat(
-                      ctx.session.db,
-                      from.id,
-                      message.chat.id,
-                    )
-                    |> result.try(fn(_) {
-                      api_calls.get_rid_of_user(ctx, from.id)
-                    })
-                  Nil
-                }
-                _, _ -> next(ctx, upd)
-              }
-            }
-            Error(err) -> {
-              log.printf_err(
-                "WARN: Could not build regexp to check message for banned languages. "
-                  <> "Skipping check for banned languages. "
-                  <> "regexp_str: {0}, banned_languages: {1}, err:{2}",
-                [
-                  regexp_str,
-                  ctx.session.chat_settings.banned_languages |> string.inspect,
-                  err |> string.inspect,
-                ],
-              )
-              next(ctx, upd)
-            }
-          }
-        }
-        None -> next(ctx, upd)
-      }
-    }
-    _ -> next(ctx, upd)
   }
-}
+  let strict_mode_on = ctx.session.chat_settings.strict_mode_newcomers > 0
+  use <- bool.lazy_guard(!is_sender_on_quarantine || !strict_mode_on, next)
+  let text = helpers.get_visible_text(message)
+  let regexp_str =
+    "["
+    <> ctx.session.chat_settings.banned_languages
+    |> list.map(fn(x) { "\\p{Script_Extensions=" <> x <> "}" })
+    |> string.join("")
+    <> "]"
 
-fn join_string_opts(text1: Option(String), text2: Option(String)) {
-  case text1, text2 {
-    None, None -> None
-    _, _ ->
-      Some(text1 |> option.unwrap("") <> " " <> text2 |> option.unwrap(""))
+  case regexp.from_string(regexp_str) {
+    Ok(reg) -> {
+      let check_result = regexp.check(reg, text)
+      use <- bool.lazy_guard(!check_result, next)
+
+      let _ = api_calls.get_rid_of_msg(ctx, message.message_id)
+
+      helpers.handle_sender(
+        message,
+        fn(from) {
+          log.printf("Ctx: {0} Ban {1} reason: restricted language symbols.", [
+            helpers.view_chat(message.chat),
+            helpers.view_user(from),
+          ])
+
+          let _ =
+            uc_repo.delete_user_chat(ctx.session.db, from.id, message.chat.id)
+          let _ = api_calls.get_rid_of_user(ctx, from.id)
+
+          Nil
+        },
+        fn(sc) {
+          log.printf("Ctx: {0} Ban {1} reason: restricted language symbols.", [
+            helpers.view_chat(message.chat),
+            helpers.view_chat(sc),
+          ])
+
+          let _ = api_calls.get_rid_of_chat(ctx, sc)
+          Nil
+        },
+        next,
+      )
+    }
+    Error(err) -> {
+      log.printf_err(
+        "WARN: Could not build regexp to check message for banned languages. "
+          <> "Skipping check for banned languages. "
+          <> "regexp_str: {0}, banned_languages: {1}, err:{2}",
+        [
+          regexp_str,
+          ctx.session.chat_settings.banned_languages |> string.inspect,
+          err |> string.inspect,
+        ],
+      )
+      next()
+    }
   }
 }

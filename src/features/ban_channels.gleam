@@ -51,37 +51,26 @@ pub fn checker(
   upd: Update,
   next: fn(BotContext, Update) -> Nil,
 ) -> Nil {
-  use <- bool.lazy_guard(!ctx.session.chat_settings.ban_channels, fn() {
-    next(ctx, upd)
-  })
+  let next = fn() { next(ctx, upd) }
+  use <- bool.lazy_guard(ctx.session.is_trusted_sender, next)
+  use <- bool.lazy_guard(!ctx.session.chat_settings.ban_channels, next)
 
-  case upd {
-    update.TextUpdate(message:, ..)
-    | update.AudioUpdate(message:, ..)
-    | update.EditedMessageUpdate(message:, ..)
-    | update.MessageUpdate(message:, ..)
-    | update.PhotoUpdate(message:, ..)
-    | update.VideoUpdate(message:, ..)
-    | update.VoiceUpdate(message:, ..) -> {
-      case message.sender_chat {
-        Some(sc) -> {
-          use <- bool.lazy_guard(ctx.session.is_trusted_sender, fn() {
-            next(ctx, upd)
-          })
+  use message <- helpers.has_msg(upd, next)
 
-          log.printf(
-            "Ctx: {0} Ban {1} reason: restricted sending on behalf of a chat",
-            [helpers.view_chat(message.chat), helpers.view_chat(sc)],
-          )
+  case message.sender_chat {
+    Some(sc) -> {
+      use <- bool.lazy_guard(ctx.session.is_trusted_sender, next)
 
-          api_calls.get_rid_of_msg(ctx, message.message_id)
-          |> result.try(fn(_) { api_calls.get_rid_of_chat(ctx, sc) })
-          |> result.try(fn(_) { Ok(Nil) })
-          |> result.lazy_unwrap(fn() { next(ctx, upd) })
-        }
-        None -> next(ctx, upd)
-      }
+      log.printf(
+        "Ctx: {0} Ban {1} reason: restricted sending on behalf of a chat",
+        [helpers.view_chat(message.chat), helpers.view_chat(sc)],
+      )
+
+      api_calls.get_rid_of_msg(ctx, message.message_id)
+      |> result.try(fn(_) { api_calls.get_rid_of_chat(ctx, sc) })
+      |> result.try(fn(_) { Ok(Nil) })
+      |> result.lazy_unwrap(next)
     }
-    _ -> next(ctx, upd)
+    None -> next()
   }
 }
