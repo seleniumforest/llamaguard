@@ -1,6 +1,7 @@
 import gleam/erlang/process.{type Subject}
 import gleam/option.{type Option, None}
 import models/chat_settings.{type ChatSettings}
+import models/error
 import models/user_chat.{type UserChat}
 
 pub type BotSession(storage_message) {
@@ -13,6 +14,9 @@ pub type BotSession(storage_message) {
     is_trusted_sender: Bool,
     is_admin: Bool,
     is_private_chat: Bool,
+    is_sender_on_quarantine: Bool,
+    is_sender_non_member: fn() -> Bool,
+    is_sender_a_chat: Bool,
     real_sender: #(Int, Option(String)),
   )
 }
@@ -22,7 +26,7 @@ pub type Resources {
 }
 
 pub type Deps {
-  Deps(cas_check: fn(Int) -> Bool)
+  Deps(cas_check: fn(Int) -> Result(Int, error.BotError))
 }
 
 pub fn default(db: Subject(storage_message)) {
@@ -38,5 +42,8 @@ pub fn default(db: Subject(storage_message)) {
       panic as "ERR: cas_check was not injected! Some shit happened"
     }),
     real_sender: #(0, None),
+    is_sender_on_quarantine: False,
+    is_sender_non_member: fn() { False },
+    is_sender_a_chat: False,
   )
 }

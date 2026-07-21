@@ -1,72 +1,62 @@
 import gleam/bool
-import gleam/json
 import gleam/list
-import gleam/option.{None, Some}
 import gleam/regexp
 import gleam/result
 import gleam/string
 import infra/alias.{type BotContext}
 import infra/api_calls
 import infra/args
+import infra/cmd_utils
+import infra/handle
 import infra/helpers
 import infra/log
 import infra/reply.{reply}
-import infra/storage/chat_settings as cs_storage
 import infra/storage/user_chat as uc_repo
 import models/error.{type BotError}
 import telega/update.{type Command}
 
 pub fn command(ctx: BotContext, cmd: Command) -> Result(BotContext, BotError) {
-  case args.try_parse_str(cmd.text, 1), ctx.update {
-    Some(arg), update.CommandUpdate(..) -> {
-      let is_valid_lang =
-        ctx.session.resources.unicode_script_extensions
-        |> list.find(fn(x) {
-          let sanitized = x |> string.lowercase() |> string.trim
-          sanitized == arg |> string.lowercase() |> string.trim
-        })
+  let usage_msg =
+    "Usage: /banLang <unicode_ext> (Han for Chinese, Hangul for Korean, Arabic etc.)"
 
-      case is_valid_lang {
-        Ok(lang) -> {
-          let is_already_added =
-            ctx.session.chat_settings.banned_languages |> list.contains(lang)
-          let new_list = case is_already_added {
-            True ->
-              ctx.session.chat_settings.banned_languages
-              |> list.filter(fn(x) { x != lang })
-            False -> [lang, ..ctx.session.chat_settings.banned_languages]
-          }
+  use lang <- args.use_first_arg(cmd.text, fn(str) { str }, fn() {
+    reply(ctx, usage_msg) |> result.try(fn(_) { Ok(ctx) })
+  })
 
-          let _ =
-            cs_storage.save_chat_property(
-              ctx.session.db,
-              ctx.update.chat_id,
-              ["banned_languages"],
-              json.array(new_list, json.string),
-            )
-            |> result.try(fn(_) {
-              reply(
-                ctx,
-                log.format("Success: language {0} {1} banned languages list", [
-                  lang,
-                  case is_already_added {
-                    True -> "was removed from"
-                    False -> "was added to"
-                  },
-                ]),
-              )
-            })
-        }
-        Error(_) ->
-          reply(
-            ctx,
-            log.format("Language {0} not found. Usage: /banLang Han", [arg]),
-          )
-      }
+  let is_valid_lang =
+    ctx.session.resources.unicode_script_extensions
+    |> list.any(fn(x) {
+      let sanitized = x |> string.lowercase() |> string.trim
+      let lang = lang |> string.lowercase() |> string.trim
+      sanitized == lang
+    })
+
+  let inserted_msg =
+    log.format("Success: language {0} was added to banned languages list", [
+      lang,
+    ])
+
+  let deleted_msg =
+    log.format("Success: language {0} was removed from banned languages list", [
+      lang,
+    ])
+
+  case is_valid_lang {
+    True -> {
+      cmd_utils.insert_or_delete_and_reply(
+        ctx,
+        ["banned_languages"],
+        fn(cs) { cs.banned_languages },
+        lang,
+        inserted_msg,
+        deleted_msg,
+      )
     }
-    _, _ -> reply(ctx, "Usage: /banLang Han")
+    False -> {
+      reply(ctx, log.format("Language {0} not found. {1}", [lang, usage_msg]))
+      |> result.try(fn(_) { Ok(ctx) })
+    }
   }
-  |> result.try(fn(_) { Ok(ctx) })
 }
 
 pub fn checker(
@@ -75,23 +65,19 @@ pub fn checker(
   next: fn(BotContext, update.Update) -> Nil,
 ) -> Nil {
   let next = fn() { next(ctx, upd) }
-  use <- bool.lazy_guard(ctx.session.is_trusted_sender, next)
   use <- bool.lazy_guard(ctx.session.chat_settings.banned_languages == [], next)
 
-  use message <- helpers.has_msg(upd, next)
+  use <- handle.apply_to_targets(
+    session: ctx.session,
+    trusted_senders: False,
+    non_members: True,
+    newcomers: True,
+    chatsenders: True,
+    next:,
+  )
+  use message <- handle.msg(upd, next)
+  let text = handle.get_visible_text(message)
 
-  //TODO for now, chats always on quarantine. Think how can we handle this
-  let is_sender_on_quarantine = case ctx.session.user_chat {
-    Some(uc) -> uc.on_quarantine
-    None ->
-      case ctx.session.real_sender {
-        #(id, _) if id < 0 -> True
-        _ -> False
-      }
-  }
-  let strict_mode_on = ctx.session.chat_settings.strict_mode_newcomers > 0
-  use <- bool.lazy_guard(!is_sender_on_quarantine || !strict_mode_on, next)
-  let text = helpers.get_visible_text(message)
   let regexp_str =
     "["
     <> ctx.session.chat_settings.banned_languages
@@ -106,7 +92,7 @@ pub fn checker(
 
       let _ = api_calls.get_rid_of_msg(ctx, message.message_id)
 
-      helpers.handle_sender(
+      handle.real_sender(
         message,
         fn(from) {
           log.printf("Ctx: {0} Ban {1} reason: restricted language symbols.", [
@@ -116,7 +102,7 @@ pub fn checker(
 
           let _ =
             uc_repo.delete_user_chat(ctx.session.db, from.id, message.chat.id)
-          let _ = api_calls.get_rid_of_user(ctx, from.id)
+          let _ = api_calls.get_rid_of_usersender(ctx, from.id)
 
           Nil
         },
@@ -126,7 +112,7 @@ pub fn checker(
             helpers.view_chat(sc),
           ])
 
-          let _ = api_calls.get_rid_of_chat(ctx, sc)
+          let _ = api_calls.get_rid_of_chatsender(ctx, sc)
           Nil
         },
         next,

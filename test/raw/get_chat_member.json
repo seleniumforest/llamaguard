@@ -1,0 +1,14 @@
+{
+  "ok": true,
+  "result": {
+    "user": {
+      "id": 7985173553,
+      "is_bot": false,
+      "first_name": "somerandomuser",
+      "username": "somerandomuser",
+      "language_code": "en",
+      "is_premium": true
+    },
+    "status": "left"
+  }
+}

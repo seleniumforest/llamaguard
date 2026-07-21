@@ -1,9 +1,10 @@
 import features/ban_language
 import gleam/erlang/process
 import gleam/io
-import gleam/list
 import gleam/option.{None, Some}
 import gleeunit/should
+import infra/storage/user_chat as uc_repo
+import models/cached
 import models/chat_settings
 import models/user_chat
 import setup.{type TestSetup}
@@ -32,7 +33,6 @@ pub fn ban_language_test() {
       "banChatMember",
     ],
   )
-
   io.print("[NO BAN] random user sends restricted symbols after quarantine\n")
   call(
     ["Han"],
@@ -68,12 +68,11 @@ pub fn ban_language_test() {
     True,
     [],
   )
-
   io.print("[BAN] non-member sends restricted symbols\n")
   call(
     ["Han"],
     False,
-    fn(s) { with_text(s.comment_from_usersender, "汉字") },
+    fn(s) { with_text(s.comment_from_usersender, "somerestrictedshit汉字") },
     True,
     [
       "deleteMessage",
@@ -89,22 +88,32 @@ fn call(
   should_call_nextfn: Bool,
   expected_calls: List(String),
 ) {
-  // case should_call_nextfn {
-  //   True -> should.be_true(expected_calls == [])
-  //   False -> should.be_true(expected_calls != [])
-  // }
-
   let s = setup.get_setup()
 
   let #(client, calls) = s.mocked_client
   let config = context.config_with_client(client)
-  let update = update.raw_to_update(upd(s))
+  let upd = upd(s)
+  let update = update.raw_to_update(upd)
   let settings =
     chat_settings.ChatSettings(
       ..s.session.chat_settings,
       banned_languages:,
-      strict_mode_newcomers: 1,
+      linked_channel_id: cached.Cached(1, -1_002_821_928_697),
     )
+
+  case on_quarantine {
+    True -> {
+      let _ =
+        uc_repo.create_user_chat(
+          s.session.db,
+          7_985_173_553,
+          -1_003_519_676_531,
+          user_chat.UserChat(1, [], True, "", ""),
+        )
+      Nil
+    }
+    False -> Nil
+  }
 
   let ctx =
     bot.Context(
@@ -119,12 +128,6 @@ fn call(
     )
     |> setup.with_middlewares(update, s)
     |> setup.with_settings(settings)
-
-  //chatsender has no userchat
-  let ctx = case on_quarantine {
-    True -> setup.with_userchat(ctx, user_chat.UserChat(1, 0, True))
-    False -> ctx
-  }
 
   ban_language.checker(ctx, update, fn(_, _) {
     should.be_true(should_call_nextfn)

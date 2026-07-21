@@ -4,7 +4,7 @@ import gleam/result
 import gleam/string
 import infra/alias.{type BotContext}
 import infra/cache_validation
-import infra/helpers
+import infra/handle
 import infra/log
 import infra/storage/chat_settings as cs_storage
 import infra/storage/user_chat as uc_storage
@@ -74,13 +74,27 @@ pub fn inject_chat_settings(db) {
 pub fn inject_user_chat() {
   fn(handler) {
     fn(ctx: BotContext, update: Update) {
-      let #(sender_id, _) = helpers.get_real_sender_by_upd(update)
+      let real_sender = case handle.get_real_sender_by_upd(update) {
+        Ok(rs) -> rs
+        Error(e) -> {
+          log.printf(
+            "WARN: Cannot find real sender id. Using from_id. ctx: {0} \nupd: {1} \nerr : {2}",
+            [string.inspect(ctx), string.inspect(update), string.inspect(e)],
+          )
+
+          #(update.from_id, option.None)
+        }
+      }
 
       let user_chat =
-        uc_storage.get_user_chat(ctx.session.db, sender_id, ctx.update.chat_id)
+        uc_storage.get_user_chat(
+          ctx.session.db,
+          real_sender.0,
+          ctx.update.chat_id,
+        )
         |> option.from_result()
 
-      let session = BotSession(..ctx.session, user_chat:)
+      let session = BotSession(..ctx.session, user_chat:, real_sender:)
       handler(Context(..ctx, session:), update)
     }
   }

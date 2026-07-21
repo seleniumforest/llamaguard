@@ -2,7 +2,6 @@ import gleam/erlang/process.{type Subject}
 import gleam/int
 import gleam/json
 import gleam/result
-import gleam/string
 import infra/log
 import infra/storage/kvstorage.{type StorageMessage, Create, Get, SaveProperty}
 import models/chat_settings as cs
@@ -35,19 +34,6 @@ pub fn save_chat_property(
 ) {
   process.call_forever(actor, fn(a) {
     SaveProperty(a, int.to_string(id), path, val)
-  })
-  |> result.try(fn(res) {
-    case res {
-      True -> Ok(res)
-      False -> {
-        log.printf_err(
-          "WARN: Update chat_settings returned no rows, probably some shit happened. "
-            <> "Please look into this. id:{0} path:{1} val:{2}",
-          [id |> int.to_string, path |> string.inspect, val |> json.to_string],
-        )
-        Error(error.DbUpdateError)
-      }
-    }
   })
 }
 

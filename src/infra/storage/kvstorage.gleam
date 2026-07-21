@@ -5,6 +5,7 @@ import gleam/json
 import gleam/list
 import gleam/otp/actor
 import gleam/string
+import infra/log
 import models/error.{type BotError, DbConnectionError, EmptyDataError}
 import sqlight
 
@@ -54,7 +55,7 @@ fn handle_message(
           expecting: string_decoder(),
         )
 
-      unwrap_query_to_settings(query, reply_with)
+      unwrap_query_to_json(query, reply_with)
       actor.continue(connection)
     }
 
@@ -79,8 +80,25 @@ fn handle_message(
       case query {
         Error(e) -> process.send(reply_with, Error(DbConnectionError(e)))
         Ok(rows) -> {
-          let is_found_and_updated = rows |> list.is_empty |> bool.negate
-          process.send(reply_with, Ok(is_found_and_updated))
+          let is_found_and_updated =
+            rows |> list.is_empty |> bool.negate && list.length(rows) == 1
+
+          case is_found_and_updated {
+            True -> process.send(reply_with, Ok(True))
+            False -> {
+              log.printf(
+                "WARN: Update chat_settings returned no rows, probably some shit happened. "
+                  <> "Please look into this. id:{0} path:{1} val:{2}",
+                [
+                  id,
+                  path |> string.inspect,
+                  val |> json.to_string,
+                ],
+              )
+
+              process.send(reply_with, Error(error.DbUpdateError))
+            }
+          }
         }
       }
 
@@ -101,7 +119,7 @@ fn handle_message(
           expecting: string_decoder(),
         )
 
-      unwrap_query_to_settings(query, reply_with)
+      unwrap_query_to_json(query, reply_with)
       actor.continue(connection)
     }
     Delete(reply_with:, id:) -> {
@@ -128,7 +146,7 @@ fn handle_message(
   }
 }
 
-fn unwrap_query_to_settings(
+fn unwrap_query_to_json(
   query: Result(List(String), sqlight.Error),
   reply_with: Subject(Result(String, BotError)),
 ) {

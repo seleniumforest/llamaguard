@@ -29,7 +29,7 @@ pub fn create_user_chat(
 
 pub fn get_user_chat(actor: Subject(StorageMessage), user_id: Int, chat_id: Int) {
   let json_data =
-    process.call_forever(actor, fn(a) { Get(a, build_key(user_id, chat_id)) })
+    process.call_forever(actor, fn(a) { get(a, user_id, chat_id) })
   unwrap_result_to_userchat(json_data)
 }
 
@@ -51,6 +51,10 @@ pub fn save_user_chat_property(
   process.call_forever(actor, fn(a) {
     SaveProperty(a, build_key(user_id, chat_id), path, val)
   })
+}
+
+fn get(a, user_id, chat_id) {
+  Get(a, build_key(user_id, chat_id))
 }
 
 fn build_key(user_id: Int, chat_id: Int) {

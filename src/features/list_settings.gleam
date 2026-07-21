@@ -29,12 +29,12 @@ pub fn command(ctx: BotContext, _cmd: Command) -> Result(BotContext, BotError) {
 /kickNewAccounts: {0}
 /strictModeNonMembers: {1}
 /strictModeNewcomers: {2}
-/checkChatClones : {3}
-/checkFemaleName : {4}
-/checkBannedWords: {5}
+/strictModeChannels: {3}
+/checkChatClones : {4}
+/checkFemaleName : {5}
 /useCas: {6}
 /banChannels: {7}
-Banned words: {8}
+Banned phrases: {8}
 Trusted users (without @): {9}
 Banned languages: {10}
 ",
@@ -42,9 +42,9 @@ Banned languages: {10}
         s.kick_new_accounts |> string.inspect,
         s.strict_mode_nonmembers |> string.inspect,
         s.strict_mode_newcomers |> string.inspect,
+        s.strict_mode_channels |> string.inspect,
         s.check_chat_clones |> string.inspect,
         s.check_female_name |> string.inspect,
-        s.check_banned_words |> string.inspect,
         s.cas_enabled |> string.inspect,
         s.ban_channels |> string.inspect,
         banned_words,

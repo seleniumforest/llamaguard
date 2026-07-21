@@ -6,22 +6,31 @@ import telega/update.{type Command}
 
 pub fn command(ctx: BotContext, _cmd: Command) -> Result(BotContext, BotError) {
   let msg =
-    "Available settings:\n"
-    <> "/strictModeNonMembers - strict mode for forwarded messages from linked channel + no reactions on all messages in chat. Applied only for non-members (comments from linked channel). Input 0 as argument to disable\n"
-    <> "/banLang - check for messages with Chinese/Arabic/etc symbols. Applied only for non-members, channels and newcomers (if strictModeNewcomers enabled). For a complete list of languages look at unicode_script_extensions.txt in source code under the res folder\n"
-    <> "/strictModeNewcomers <5> - strict mode for first <5> messages. Applied even if user was previously in the chat. Does not work for sender channels. Input 0 as argument to disable.\n"
-    <> "/kickNewAccounts <8000000000> - kick all users with telegram id over given. \n"
-    <> "/checkChatClones - bot will try to find accounts/channels whose name is similar to chat or linked channel title.\n"
-    <> "/checkFemaleName - bot will kick joining accounts with ENG/RU female name.\n"
-    <> "/trustuser <@username_or_id> - whitelist user. Reply with this command to trusted user OR specify username/userid.\n"
-    <> "/useCas - bot will use Combot's anti-spam lists. Applied for joining users and non-members."
-    <> "/banChannels - ban users who write on behalf of a channel. Applied for newcomers and non-members.\n"
+    "Choose what user groups you want to filter:\n"
+    <> "/strictModeNonMembers - strict mode* for comments from linked channel and reactions from non-members.\n"
+    <> "/strictModeNewcomers <5> - strict mode for first <5> messages. Applied even if user was previously in the chat. Does not work for senders on behalf of a chat. Input 0 to disable.\n"
+    <> "/strictModeChannels - strict mode for those who write on behalf of a channel.\n"
     <> "\n"
-    <> "/checkBannedWords - toggle ban for messages with banned words\n"
-    <> "/banWord <word> - add or remove (if already exists) word to/from ban list, splitted by space. Also checks sender's name or chat title\n"
+    <> "Available filters for strict mode:\n"
+    <> "/banLang - check for messages for Han(Chinese)/Arabic/Hangul(Korean) etc symbols. For a complete list of languages look at unicode_script_extensions.txt in source code under the res folder (look bot's tg profile). Applied to non-members, newcomers, chatsenders.\n"
+    <> "/kickNewAccounts <8000000000> - kick all users with telegram id over given. Input 0 to disable. Applied to non-members, newcomers.\n"
+    <> "/checkChatClones - bot will try to find accounts/channels whose name is similar to chat or linked channel title. Applied to non-members, newcomers, chatsenders.\n"
+    <> "/checkFemaleName - bot will ban accounts with ENG/RU female name when they join or react. Applied to non-members, newcomers, chatsenders.\n"
+    <> "/useCas - bot will use Combot's anti-spam lists. Applied to non-members, newcomers.\n"
+    <> "/banPhrase <phrase> - add or remove phrase to/from ban list. Case insensetive. Also checks sender's name/title and captions. Applied to non-members, newcomers, chatsenders.\n"
+    <> "\n"
+    <> "Other filters:"
+    <> "\n"
+    <> "/banChannels - instantly bans everyone who write on behalf of a channel.\n"
+    <> "/trustuser <username_with_@_or_id> - whitelist user or channel. Reply with this command to trusted user OR specify username/userid.\n"
+    //<> "/aggressive - bans if message contains something other than plain text. Also checks for frequently used spam words, money amounts, em dashes and other unnatural symbols.\n"
+    // /recommended
+    // /banGuestBots
     <> "\n"
     <> "/listSettings - show current settings\n"
     <> "/help - show this message\n"
+    <> "\n"
+    <> "* strict mode is to allow only plain text messages without stickers, links, media, bots etc."
 
   reply(ctx, msg) |> result.try(fn(_) { Ok(ctx) })
 }

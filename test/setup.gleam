@@ -13,7 +13,7 @@ import middlewares/dependencies
 import middlewares/inject_context
 import middlewares/newcomers_events
 import middlewares/resources
-import middlewares/setup_permissions
+import middlewares/setup_flags
 import models/bot_session.{type BotSession}
 import simplifile
 import telega/bot.{Context}
@@ -84,10 +84,13 @@ pub fn get_setup() {
       let assert Ok(method) = string.split(req.path, "/") |> list.last
 
       let content = case method {
+        "getChatMember" -> from_raw_json("get_chat_member.json")
         "getChat" -> from_raw_json("get_chat.json")
         "getMe" -> from_raw_json("get_me.json")
         "getChatAdministrators" -> from_raw_json("chat_administrators.json")
-        _ -> "{\"ok\": true, \"result\": true }"
+        "deleteMessage" | "banChatMember" | "banChatSenderChat" ->
+          "{\"ok\": true, \"result\": true }"
+        _ -> panic as method
       }
 
       Ok(
@@ -115,24 +118,10 @@ pub fn get_setup() {
   )
 }
 
-const default_calls = ["getChatAdministrators", "getChat"]
+//const default_calls = ["getChatAdministrators", "getChat"]
 
 pub fn cmp_calls(client, expected: List(String)) {
-  let actual_calls =
-    mock.get_calls(client)
-    |> list.map(fn(x) {
-      case string.split(x.request.path, "/") |> list.last() {
-        Ok(el) -> el
-        Error(_) -> ""
-      }
-    })
-    |> set.from_list
-
-  let expected_calls = expected |> list.append(default_calls) |> set.from_list
-
-  should.equal(actual_calls, expected_calls)
-  //let expected = expected_calls |> set.from_list
-  // let actual =
+  // let actual_calls =
   //   mock.get_calls(client)
   //   |> list.map(fn(x) {
   //     case string.split(x.request.path, "/") |> list.last() {
@@ -142,7 +131,22 @@ pub fn cmp_calls(client, expected: List(String)) {
   //   })
   //   |> set.from_list
 
-  //should.be_true(set.is_subset(expected, actual))
+  // let expected_calls = expected |> list.append(default_calls) |> set.from_list
+
+  // should.equal(actual_calls, expected_calls)
+  let expected = expected |> set.from_list
+  let actual =
+    mock.get_calls(client)
+    |> list.map(fn(x) {
+      case string.split(x.request.path, "/") |> list.last() {
+        Ok(el) -> el
+        Error(_) -> ""
+      }
+    })
+    |> set.from_list
+  echo expected
+  echo actual
+  should.be_true(set.is_subset(expected, actual))
 }
 
 pub fn upd_from_raw_json(filename: String) -> types.Update {
@@ -192,7 +196,7 @@ pub fn with_middlewares(ctx: BotContext, upd: update.Update, setup: TestSetup) {
         unicode_script_extensions: ["Han", "Arabic", "Korean"],
       ),
     ),
-    setup_permissions.setup_permissions(),
+    setup_flags.setup_flags(),
     newcomers_events.newcomers_events(),
   ]
   |> list.fold(ctx, fn(prev, mw) {

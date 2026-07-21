@@ -1,11 +1,13 @@
 import gleam/bool
 import gleam/dict.{type Dict}
 import gleam/list
-import gleam/option.{None, Some}
+import gleam/option
 import gleam/result
 import gleam/string
 import infra/alias.{type BotContext}
 import infra/api_calls
+import infra/cmd_utils
+import infra/handle
 import infra/helpers
 import infra/log
 import models/error.{type BotError}
@@ -13,12 +15,12 @@ import telega/model/types
 import telega/update.{type Command, type Update}
 
 pub fn command(ctx: BotContext, _cmd: Command) -> Result(BotContext, BotError) {
-  helpers.flip_bool_setting_and_reply(
+  cmd_utils.flip_bool_setting_and_reply(
     ctx,
     ["check_chat_clones"],
     fn(cs) { cs.check_chat_clones },
     "Success: bot will try to find accounts whose name is similar to chat title",
-    "Success: bot will NOT try to find accounts whose name is similar to chat title",
+    "Success: bot will NOT try to find accounts whose name is similar to chat title anymore",
   )
 }
 
@@ -27,76 +29,78 @@ pub fn checker(
   upd: Update,
   next: fn(BotContext, Update) -> Nil,
 ) -> Nil {
-  use <- bool.lazy_guard(!ctx.session.chat_settings.check_chat_clones, fn() {
-    next(ctx, upd)
-  })
+  let next = fn() { next(ctx, upd) }
+  use <- bool.lazy_guard(!ctx.session.chat_settings.check_chat_clones, next)
 
-  case upd {
-    update.AudioUpdate(message:, ..)
-    | update.BusinessMessageUpdate(message:, ..)
-    | update.EditedMessageUpdate(message:, ..)
-    | update.PhotoUpdate(message:, ..)
-    | update.TextUpdate(message:, ..)
-    | update.VideoUpdate(message:, ..)
-    | update.VoiceUpdate(message:, ..) -> {
-      use <- bool.lazy_guard(message.is_automatic_forward == Some(True), fn() {
-        next(ctx, upd)
-      })
+  use <- handle.apply_to_targets(
+    session: ctx.session,
+    trusted_senders: False,
+    non_members: True,
+    newcomers: True,
+    chatsenders: True,
+    next:,
+  )
 
-      case message.sender_chat, message.from {
-        Some(sc), _ -> {
-          let sender_chat_title = sc.title |> option.unwrap("")
-          let chat_title = message.chat.title |> option.unwrap("")
-          log.printf("comparing {0} with {1}", [sender_chat_title, chat_title])
-          let compare_result = smart_compare(sender_chat_title, chat_title)
+  handle.upd(
+    upd,
+    fn(message) {
+      let handle_usersender = fn(from) {
+        let is_system_msg = helpers.is_service_msg(message)
+        let is_clone = is_user_clone(from, message.chat)
+        use <- bool.lazy_guard(!is_clone || is_system_msg, next)
+        log.printf("Ctx: {0} Ban {1} reason: chat clone", [
+          helpers.view_chat(message.chat),
+          helpers.view_user(from),
+        ])
 
-          case compare_result {
-            False -> next(ctx, upd)
-            True -> {
-              log.printf("Ctx: {0} Ban {1} reason: chat clone", [
-                helpers.view_chat(message.chat),
-                helpers.view_chat(sc),
-              ])
+        api_calls.get_rid_of_msg(ctx, message.message_id)
+        |> result.try(fn(_) { api_calls.get_rid_of_usersender(ctx, from.id) })
+        |> result.try(fn(_) { Ok(Nil) })
+        |> result.lazy_unwrap(next)
+      }
 
-              api_calls.get_rid_of_msg(ctx, message.message_id)
-              |> result.try(fn(_) { api_calls.get_rid_of_chat(ctx, sc) })
-              |> result.try(fn(_) { Ok(Nil) })
-              |> result.lazy_unwrap(fn() { next(ctx, upd) })
-            }
+      let handle_chatsender = fn(sc: types.Chat) {
+        let sender_chat_title = sc.title |> option.unwrap("")
+        let chat_title = message.chat.title |> option.unwrap("")
+        log.printf("comparing {0} with {1}", [sender_chat_title, chat_title])
+        let compare_result = smart_compare(sender_chat_title, chat_title)
+
+        case compare_result {
+          False -> next()
+          True -> {
+            log.printf("Ctx: {0} Ban {1} reason: chat clone", [
+              helpers.view_chat(message.chat),
+              helpers.view_chat(sc),
+            ])
+
+            api_calls.get_rid_of_msg(ctx, message.message_id)
+            |> result.try(fn(_) { api_calls.get_rid_of_chatsender(ctx, sc) })
+            |> result.try(fn(_) { Ok(Nil) })
+            |> result.lazy_unwrap(next)
           }
         }
-        None, Some(from) -> {
-          let is_clone = is_user_clone(from, message.chat)
-          use <- bool.lazy_guard(!is_clone, fn() { next(ctx, upd) })
-          log.printf("Ctx: {0} Ban {1} reason: chat clone", [
-            helpers.view_chat(message.chat),
-            helpers.view_user(from),
-          ])
-
-          api_calls.get_rid_of_msg(ctx, message.message_id)
-          |> result.try(fn(_) { api_calls.get_rid_of_user(ctx, from.id) })
-          |> result.try(fn(_) { Ok(Nil) })
-          |> result.lazy_unwrap(fn() { next(ctx, upd) })
-        }
-        _, _ -> next(ctx, upd)
       }
-    }
-    update.ChatMemberUpdate(chat_member_updated:, ..) -> {
+
+      handle.real_sender(message, handle_usersender, handle_chatsender, next)
+    },
+    fn(chat_member_updated) {
       let is_clone =
         is_user_clone(chat_member_updated.from, chat_member_updated.chat)
-      use <- bool.lazy_guard(!is_clone, fn() { next(ctx, upd) })
+      use <- bool.lazy_guard(!is_clone, next)
 
       log.printf("Ctx: {0} Ban {1} reason: chat clone", [
         helpers.view_chat(chat_member_updated.chat),
         helpers.view_user(chat_member_updated.from),
       ])
 
-      api_calls.get_rid_of_user(ctx, chat_member_updated.from.id)
+      api_calls.get_rid_of_usersender(ctx, chat_member_updated.from.id)
       |> result.try(fn(_) { Ok(Nil) })
-      |> result.lazy_unwrap(fn() { next(ctx, upd) })
-    }
-    _ -> next(ctx, upd)
-  }
+      |> result.lazy_unwrap(next)
+    },
+    fn(_) { next() },
+    next,
+  )
+  //use <- bool.lazy_guard(message.is_automatic_forward == Some(True), next)
 }
 
 fn is_user_clone(from: types.User, chat: types.Chat) {
