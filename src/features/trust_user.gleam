@@ -6,6 +6,7 @@ import gleam/option.{None, Some}
 import gleam/result
 import infra/alias.{type BotContext}
 import infra/args
+import infra/handle
 import infra/helpers.{match_ids}
 import infra/log
 import infra/reply.{reply}
@@ -55,17 +56,15 @@ fn handle_reply(
   ctx: BotContext,
   message: types.Message,
 ) -> Result(types.Message, BotError) {
+  //todo handle case with guest_bot_caller_user
   let user = case message.reply_to_message {
     Some(msg) -> {
-      case msg.sender_chat, msg.from {
-        Some(sc), _ -> {
-          #(sc.id, sc.username) |> Some
-        }
-        _, Some(from) -> {
-          #(from.id, from.username) |> Some
-        }
-        _, _ -> None
-      }
+      handle.real_sender(
+        msg,
+        fn(user) { #(user.id, user.username) |> Some },
+        fn(chat) { #(chat.id, chat.username) |> Some },
+        fn() { None },
+      )
     }
     None -> None
   }

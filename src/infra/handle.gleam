@@ -141,12 +141,13 @@ pub fn real_sender(
   on_channel: fn(types.Chat) -> a,
   fallback: fn() -> a,
 ) {
-  case msg.sender_chat, msg.from {
-    Some(sc), Some(from) if from.id == 777_000 || from.id == 136_817_688 ->
+  case msg.guest_bot_caller_user, msg.sender_chat, msg.from {
+    Some(caller), _, _ -> on_user(caller)
+    _, Some(sc), Some(from) if from.id == 777_000 || from.id == 136_817_688 ->
       on_channel(sc)
-    None, Some(from) -> on_user(from)
-    Some(sc), None -> on_channel(sc)
-    _, _ -> fallback()
+    _, None, Some(from) -> on_user(from)
+    _, Some(sc), None -> on_channel(sc)
+    _, _, _ -> fallback()
   }
 }
 
