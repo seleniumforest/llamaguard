@@ -1,0 +1,26 @@
+{
+  "ok": true,
+  "result": [
+    {
+      "update_id": 771694321,
+      "message": {
+        "message_id": 2549,
+        "from": {
+          "id": 781245803,
+          "is_bot": false,
+          "first_name": "alpaca",
+          "username": "alpacaincrypto",
+          "language_code": "en",
+          "is_premium": true
+        },
+        "chat": {
+          "id": -1003519676531,
+          "title": "test channel Chat",
+          "type": "supergroup"
+        },
+        "date": 1781375713,
+        "text": "message from user"
+      }
+    }
+  ]
+}

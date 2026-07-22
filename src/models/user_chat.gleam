@@ -3,25 +3,71 @@ import gleam/json
 import models/decode
 
 pub type UserChat {
-  UserChat(joined_time: Int, messages: Int, on_quarantine: Bool)
+  UserChat(
+    joined_time: Int,
+    messages: List(UserMessage),
+    on_quarantine: Bool,
+    first_name: String,
+    last_name: String,
+  )
+}
+
+pub type UserMessage {
+  UserMessage(id: Int, text: String)
 }
 
 pub fn default() {
-  UserChat(joined_time: 0, messages: 0, on_quarantine: False)
+  UserChat(
+    joined_time: 0,
+    messages: [],
+    on_quarantine: False,
+    first_name: "",
+    last_name: "",
+  )
+}
+
+pub fn message_encoder(msg: UserMessage) {
+  json.object([
+    #("id", json.int(msg.id)),
+    #("text", json.string(msg.text)),
+  ])
 }
 
 pub fn user_chat_encoder(uc: UserChat) {
   json.object([
     #("joined_time", json.int(uc.joined_time)),
-    #("messages", json.int(uc.messages)),
+    #("messages", json.array(uc.messages, message_encoder)),
     #("on_quarantine", json.bool(uc.on_quarantine)),
+    #("first_name", json.string(uc.first_name)),
+    #("last_name", json.string(uc.last_name)),
   ])
+}
+
+pub fn user_message_field(
+  name: String,
+  next: fn(List(UserMessage)) -> dyn_decode.Decoder(a),
+) -> dyn_decode.Decoder(a) {
+  let um_decoder = {
+    use id <- dyn_decode.field("id", dyn_decode.int)
+    use text <- dyn_decode.field("text", dyn_decode.string)
+    dyn_decode.success(UserMessage(id, text))
+  }
+  use messages <- dyn_decode.field(name, dyn_decode.list(um_decoder))
+  next(messages)
 }
 
 pub fn user_chat_decoder() {
   use joined_time <- decode.int_field("joined_time")
-  use messages <- decode.int_field("messages")
+  use messages <- user_message_field("messages")
   use on_quarantine <- decode.bool_field("on_quarantine")
+  use first_name <- decode.string_field("first_name")
+  use last_name <- decode.string_field("last_name")
 
-  dyn_decode.success(UserChat(joined_time:, messages:, on_quarantine:))
+  dyn_decode.success(UserChat(
+    joined_time:,
+    messages:,
+    on_quarantine:,
+    first_name:,
+    last_name:,
+  ))
 }

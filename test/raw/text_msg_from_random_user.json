@@ -1,0 +1,26 @@
+{
+  "ok": true,
+  "result": [
+    {
+      "update_id": 436978673,
+      "message": {
+        "message_id": 2549,
+        "from": {
+          "id": 7985173553,
+          "is_bot": false,
+          "first_name": "somerandomuser",
+          "username": "somerandomuser",
+          "language_code": "en",
+          "is_premium": true
+        },
+        "chat": {
+          "id": -1003519676531,
+          "title": "test channel Chat",
+          "type": "supergroup"
+        },
+        "date": 1781375714,
+        "text": "message from random user"
+      }
+    }
+  ]
+}

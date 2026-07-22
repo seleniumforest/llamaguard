@@ -1,9 +1,11 @@
+import gleam/bool
 import gleam/dynamic/decode
 import gleam/erlang/process.{type Subject}
 import gleam/json
 import gleam/list
 import gleam/otp/actor
 import gleam/string
+import infra/log
 import models/error.{type BotError, DbConnectionError, EmptyDataError}
 import sqlight
 
@@ -23,8 +25,8 @@ pub type StorageMessage {
   )
 }
 
-pub fn init() -> Subject(StorageMessage) {
-  let connection = init_db()
+pub fn init(db_path: String) -> Subject(StorageMessage) {
+  let connection = init_db(db_path)
 
   let assert Ok(actor) =
     actor.new(connection)
@@ -53,7 +55,7 @@ fn handle_message(
           expecting: string_decoder(),
         )
 
-      unwrap_query_to_settings(query, reply_with)
+      unwrap_query_to_json(query, reply_with)
       actor.continue(connection)
     }
 
@@ -62,7 +64,8 @@ fn handle_message(
 
       let sql = "UPDATE data 
             SET value = json_set(value, '$." <> path <> "', json(?)) 
-            WHERE key = ?;"
+            WHERE key = ?
+            RETURNING 1;"
 
       let serialized = val |> json.to_string |> sqlight.text
 
@@ -71,12 +74,32 @@ fn handle_message(
           sql,
           on: connection,
           with: [serialized, sqlight.text(id)],
-          expecting: decode.dynamic,
+          expecting: decode.field(0, decode.int, fn(x) { decode.success(x) }),
         )
 
       case query {
         Error(e) -> process.send(reply_with, Error(DbConnectionError(e)))
-        Ok(_) -> process.send(reply_with, Ok(True))
+        Ok(rows) -> {
+          let is_found_and_updated =
+            rows |> list.is_empty |> bool.negate && list.length(rows) == 1
+
+          case is_found_and_updated {
+            True -> process.send(reply_with, Ok(True))
+            False -> {
+              log.printf(
+                "WARN: Update chat_settings returned no rows, probably some shit happened. "
+                  <> "Please look into this. id:{0} path:{1} val:{2}",
+                [
+                  id,
+                  path |> string.inspect,
+                  val |> json.to_string,
+                ],
+              )
+
+              process.send(reply_with, Error(error.DbUpdateError))
+            }
+          }
+        }
       }
 
       actor.continue(connection)
@@ -96,14 +119,14 @@ fn handle_message(
           expecting: string_decoder(),
         )
 
-      unwrap_query_to_settings(query, reply_with)
+      unwrap_query_to_json(query, reply_with)
       actor.continue(connection)
     }
     Delete(reply_with:, id:) -> {
       let key = sqlight.text(id)
 
       let query =
-        "DELETE FROM data WHERE key = ?;"
+        "DELETE FROM data WHERE key = ? RETURNING key;"
         |> sqlight.query(
           on: connection,
           with: [key],
@@ -112,7 +135,10 @@ fn handle_message(
 
       case query {
         Error(e) -> process.send(reply_with, Error(DbConnectionError(e)))
-        Ok(_) -> process.send(reply_with, Ok(True))
+        Ok(rows) -> {
+          let is_found_and_deleted = rows |> list.is_empty |> bool.negate
+          process.send(reply_with, Ok(is_found_and_deleted))
+        }
       }
 
       actor.continue(connection)
@@ -120,7 +146,7 @@ fn handle_message(
   }
 }
 
-fn unwrap_query_to_settings(
+fn unwrap_query_to_json(
   query: Result(List(String), sqlight.Error),
   reply_with: Subject(Result(String, BotError)),
 ) {
@@ -135,8 +161,8 @@ fn unwrap_query_to_settings(
   }
 }
 
-fn init_db() {
-  let assert Ok(conn) = sqlight.open("file:data.sqlite3")
+fn init_db(db_path: String) {
+  let assert Ok(conn) = sqlight.open(db_path)
 
   let init_query =
     "CREATE TABLE IF NOT EXISTS data (

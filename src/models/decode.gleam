@@ -16,6 +16,14 @@ pub fn bool_field(
   next(val)
 }
 
+pub fn string_field(
+  name: String,
+  next: fn(String) -> decode.Decoder(a),
+) -> decode.Decoder(a) {
+  use val <- decode.optional_field(name, "", decode.string)
+  next(val)
+}
+
 pub fn string_list_field(
   name: String,
   next: fn(List(String)) -> decode.Decoder(a),

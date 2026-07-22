@@ -1,79 +1,46 @@
 import gleam/bool
-import gleam/json
 import gleam/list
 import gleam/option
 import gleam/result
-import gleam/set
 import gleam/string
 import infra/alias.{type BotContext}
 import infra/api_calls
+import infra/cmd_utils
+import infra/handle
 import infra/helpers
 import infra/log
 import infra/reply.{reply}
-import infra/storage/chat_settings as cs_storage
 import models/error.{type BotError}
 import telega/update.{type Command, type Update}
 
-// Toggle check_banned_words on/off
-pub fn command(ctx: BotContext, _cmd: Command) -> Result(BotContext, BotError) {
-  helpers.flip_bool_setting_and_reply(
-    ctx,
-    ["check_banned_words"],
-    fn(cs) { cs.check_banned_words },
-    "Success: bot will ban users for banned words",
-    "Success: bot will NOT ban users for banned words",
-  )
-}
-
-pub fn add_or_remove_words(
-  ctx: BotContext,
-  cmd: Command,
-) -> Result(BotContext, BotError) {
+pub fn command(ctx: BotContext, cmd: Command) -> Result(BotContext, BotError) {
   let input_words =
-    cmd.text
+    cmd.payload
+    |> option.unwrap("")
     |> string.lowercase
-    |> string.split(" ")
-    |> list.rest()
-    |> result.unwrap([])
-    |> list.filter(fn(x) { !string.is_empty(x) })
+    |> string.trim
 
-  case list.is_empty(input_words) {
-    True -> reply(ctx, "Usage: /banWord <word1> [word2] [word3] ...")
+  case string.is_empty(input_words) {
+    True ->
+      reply(ctx, "Usage: /banPhrase <phrase>") |> result.try(fn(_) { Ok(ctx) })
     False -> {
-      let current_words = ctx.session.chat_settings.banned_words
-      let words_to_remove =
-        current_words |> list.filter(fn(w) { list.contains(input_words, w) })
-      let words_to_add =
-        input_words |> list.filter(fn(w) { !list.contains(current_words, w) })
+      let inserted_msg =
+        log.format("Success: '{0}' was added to banned phrases", [input_words])
+      let deleted_msg =
+        log.format("Success: '{0}' was removed from banned phrases", [
+          input_words,
+        ])
 
-      let new_words =
-        current_words
-        |> list.append(words_to_add)
-        |> list.filter(fn(w) { !list.contains(words_to_remove, w) })
-        |> list.unique
-
-      cs_storage.save_chat_property(
-        ctx.session.db,
-        ctx.update.chat_id,
+      cmd_utils.insert_or_delete_and_reply(
+        ctx,
         ["banned_words"],
-        json.array(new_words, json.string),
+        fn(cs) { cs.banned_words },
+        input_words,
+        inserted_msg,
+        deleted_msg,
       )
-      |> result.try(fn(_) {
-        reply(
-          ctx,
-          log.format(
-            "Added words: {0}\nRemoved Words: {1}\n\nNew banned words list: {2}",
-            [
-              string.join(words_to_add, ", "),
-              string.join(words_to_remove, ", "),
-              string.join(new_words, ", "),
-            ],
-          ),
-        )
-      })
     }
   }
-  |> result.try(fn(_) { Ok(ctx) })
 }
 
 // Checker for messages
@@ -82,55 +49,48 @@ pub fn checker(
   upd: Update,
   next: fn(BotContext, Update) -> Nil,
 ) -> Nil {
+  let next = fn() { next(ctx, upd) }
   let banned_words = ctx.session.chat_settings.banned_words
-  let needs_check =
-    ctx.session.chat_settings.check_banned_words && !list.is_empty(banned_words)
+  let needs_check = !list.is_empty(banned_words)
+  use <- bool.lazy_guard(!needs_check, next)
 
-  use <- bool.lazy_guard(!needs_check, fn() { next(ctx, upd) })
+  use <- handle.apply_to_targets(
+    session: ctx.session,
+    trusted_senders: False,
+    non_members: True,
+    newcomers: True,
+    chatsenders: True,
+    next:,
+  )
 
-  case upd {
-    update.TextUpdate(from_id:, message:, ..)
-    | update.AudioUpdate(from_id:, message:, ..)
-    | update.EditedMessageUpdate(from_id:, message:, ..)
-    | update.MessageUpdate(from_id:, message:, ..)
-    | update.PhotoUpdate(from_id:, message:, ..)
-    | update.VideoUpdate(from_id:, message:, ..)
-    | update.VoiceUpdate(from_id:, message:, ..) -> {
-      let text = message.text |> option.unwrap("")
-      let caption = message.caption |> option.unwrap("")
-      let full_name = helpers.try_get_fullname(message.from)
-      let sender_chat_title =
-        message.sender_chat
-        |> option.then(fn(x) { x.title })
-        |> option.unwrap("")
+  use message <- handle.msg(upd, next)
 
-      let contains_banned =
-        [text, caption, full_name, sender_chat_title]
-        |> string.join(" ")
-        |> string.lowercase()
-        |> string.split(" ")
-        |> list.filter(fn(x) { !string.is_empty(x) })
-        |> set.from_list
-        |> set.is_disjoint(set.from_list(banned_words))
-        |> bool.negate
+  let contains_banned =
+    helpers.contains_opt(banned_words, message.text)
+    || helpers.contains_opt(banned_words, message.caption)
+    || helpers.contains(banned_words, helpers.try_get_fullname(message.from))
+    || helpers.contains_opt(
+      banned_words,
+      message.sender_chat
+        |> option.then(fn(x) { x.title }),
+    )
 
-      use <- bool.lazy_guard(!contains_banned, fn() { next(ctx, upd) })
+  use <- bool.lazy_guard(!contains_banned, next)
 
-      log.printf("Ctx: {0} Ban {1} reason: banned word in message or name", [
-        helpers.view_chat(message.chat),
-        helpers.view_sender(message),
-      ])
+  log.printf("Ctx: {0} Ban {1} reason: banned word in message or name.", [
+    helpers.view_chat(message.chat),
+    handle.view_sender(message),
+  ])
 
-      api_calls.get_rid_of_msg(ctx, message.message_id)
-      |> result.try(fn(_) {
-        case message.sender_chat {
-          option.Some(sc) -> api_calls.get_rid_of_chat(ctx, sc)
-          option.None -> api_calls.get_rid_of_user(ctx, from_id)
-        }
-      })
-      |> result.map(fn(_) { Nil })
-      |> result.lazy_unwrap(fn() { next(ctx, upd) })
-    }
-    _ -> next(ctx, upd)
-  }
+  api_calls.get_rid_of_msg(ctx, message.message_id)
+  |> result.try(fn(_) {
+    handle.real_sender(
+      message,
+      fn(user) { api_calls.get_rid_of_usersender(ctx, user.id) },
+      fn(chat) { api_calls.get_rid_of_chatsender(ctx, chat) },
+      fn() { panic as "unreachable" },
+    )
+  })
+  |> result.map(fn(_) { Nil })
+  |> result.lazy_unwrap(next)
 }

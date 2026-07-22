@@ -1,0 +1,30 @@
+{
+  "ok": true,
+  "result": [
+    {
+      "update_id": 771694320,
+      "message": {
+        "message_id": 2548,
+        "from": {
+          "id": 136817688,
+          "is_bot": true,
+          "first_name": "Channel",
+          "username": "Channel_Bot"
+        },
+        "sender_chat": {
+          "id": -1002275848035,
+          "title": "альпака тревел 🇧🇾",
+          "username": "travelalpaca",
+          "type": "channel"
+        },
+        "chat": {
+          "id": -1003519676531,
+          "title": "test channel Chat",
+          "type": "supergroup"
+        },
+        "date": 1781375707,
+        "text": "message from chat"
+      }
+    }
+  ]
+}

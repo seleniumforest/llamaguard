@@ -6,15 +6,16 @@ import gleam/option.{None, Some}
 import gleam/result
 import infra/alias.{type BotContext}
 import infra/args
+import infra/handle
 import infra/helpers.{match_ids}
 import infra/log
 import infra/reply.{reply}
 import infra/storage/chat_settings as cs_storage
-import infra/storage/user_chat as uc_repo
 import models/error.{type BotError}
 import telega/model/types
 import telega/update.{type Command}
 
+//todo telegram sends some numbers as tel.numbers, needs fix
 pub fn command(ctx: BotContext, cmd: Command) -> Result(BotContext, BotError) {
   case args.try_parse_str(cmd.text, 1), ctx.update {
     Some(username), update.CommandUpdate(..) -> {
@@ -55,23 +56,33 @@ fn handle_reply(
   ctx: BotContext,
   message: types.Message,
 ) -> Result(types.Message, BotError) {
-  let user_to_trust =
-    message.reply_to_message
-    |> option.map(fn(msg) { msg.from })
-    |> option.flatten
-
-  case user_to_trust {
-    None -> no_username_reply(ctx)
-    Some(user) -> {
-      let str_id =
-        user.id |> int.to_string
-        <> case user.username {
-          None -> ""
-          Some(username) -> "@" <> username
-        }
-
-      process_id(ctx, str_id)
+  //todo handle case with guest_bot_caller_user
+  let user = case message.reply_to_message {
+    Some(msg) -> {
+      handle.real_sender(
+        msg,
+        fn(user) { #(user.id, user.username) |> Some },
+        fn(chat) { #(chat.id, chat.username) |> Some },
+        fn() { None },
+      )
     }
+    None -> None
+  }
+
+  case user {
+    Some(#(id, username)) -> {
+      let joined =
+        log.format("{0}{1}", [
+          int.to_string(id),
+          case username {
+            None -> ""
+            Some(u) -> "@" <> u
+          },
+        ])
+
+      process_id(ctx, joined)
+    }
+    None -> no_username_reply(ctx)
   }
 }
 
@@ -111,80 +122,4 @@ fn process_id(ctx: BotContext, id: String) {
     }
     reply(ctx, log.format(msg, [id]))
   })
-}
-
-pub fn checker(
-  ctx: BotContext,
-  upd: update.Update,
-  next: fn(BotContext, update.Update) -> Nil,
-) -> Nil {
-  //admins are trusted by default
-  let is_admin = case ctx.session.chat_settings.admins_list.value {
-    [] -> False
-    ls -> list.contains(ls, ctx.update.from_id)
-  }
-
-  use <- bool.guard(is_admin, Nil)
-
-  case upd {
-    update.AudioUpdate(message:, ..)
-    | update.TextUpdate(message:, ..)
-    | update.VideoUpdate(message:, ..)
-    | update.VoiceUpdate(message:, ..)
-    | update.PhotoUpdate(message:, ..)
-    | update.EditedMessageUpdate(message:, ..) -> {
-      //linked channel id 777000 is also trusted by default
-      let is_forwarded = case message.from {
-        None -> False
-        Some(from) -> from.id == 777_000
-      }
-      use <- bool.guard(is_forwarded, Nil)
-
-      let username_to_match = case message.sender_chat {
-        Some(sc) -> sc.username
-        None ->
-          message.from
-          |> option.map(fn(x) { x.username })
-          |> option.flatten
-      }
-
-      check_is_trusted(ctx, upd, username_to_match, next)
-    }
-    update.ChatMemberUpdate(chat_member_updated:, ..) ->
-      check_is_trusted(ctx, upd, chat_member_updated.from.username, next)
-    _ -> next(ctx, upd)
-  }
-}
-
-fn check_is_trusted(
-  ctx: BotContext,
-  upd: update.Update,
-  username: option.Option(String),
-  next: fn(BotContext, update.Update) -> Nil,
-) {
-  let is_trusted =
-    helpers.is_trusted(
-      ctx.session.chat_settings.trusted_users,
-      ctx.update.from_id,
-      username,
-    )
-
-  case is_trusted {
-    False -> next(ctx, upd)
-    True -> {
-      //Get user off from quarantine on first message AFTER he was trusted. 
-      //We cannot do it in command /trustuser @username because we don't know his ID from command args
-      //and that's kind of unreliable to memoize @username because it could be changed
-      let _ =
-        uc_repo.save_user_chat_property(
-          ctx.session.db,
-          upd.from_id,
-          upd.chat_id,
-          ["on_quarantine"],
-          json.bool(False),
-        )
-
-      next(ctx, upd)
-    }
-  }
 }

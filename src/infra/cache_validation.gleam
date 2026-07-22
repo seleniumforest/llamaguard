@@ -13,7 +13,7 @@ import models/error
 import telega/bot
 import telega/model/types
 
-const admins_cache_ttl_sec = 60
+const admins_cache_ttl_sec = 300
 
 const linked_channel_cache_ttl_sec = 3600
 
@@ -94,7 +94,6 @@ pub fn validate_linked_channel(
     < now
 
   use <- bool.lazy_guard(!cache_expired, fn() { next(ctx, errors) })
-
   case api_calls.get_chat(ctx, ctx.update.chat_id) {
     Ok(chat) -> {
       let linked_channel_id =

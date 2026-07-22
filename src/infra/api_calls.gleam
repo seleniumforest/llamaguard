@@ -3,7 +3,7 @@ import gleam/http/request
 import gleam/httpc
 import gleam/int
 import gleam/json
-import gleam/option
+import gleam/option.{Some}
 import gleam/result
 import gleam/string
 import infra/alias.{type BotContext}
@@ -15,14 +15,14 @@ import telega/model/types.{
   GetChatMemberParameters, Int,
 }
 
-pub fn get_rid_of_user(ctx: BotContext, user_id: Int) {
+pub fn get_rid_of_usersender(ctx: BotContext, user_id: Int) {
   api.ban_chat_member(
     ctx.config.api_client,
     parameters: BanChatMemberParameters(
       chat_id: Int(ctx.update.chat_id),
       user_id:,
       until_date: option.None,
-      revoke_messages: option.Some(True),
+      revoke_messages: Some(True),
     ),
   )
   |> result.map_error(log_err)
@@ -39,13 +39,59 @@ pub fn get_rid_of_msg(ctx: BotContext, message_id: Int) {
   |> result.map_error(log_err)
 }
 
-pub fn get_rid_of_chat(ctx: BotContext, sender_chat: types.Chat) {
+pub fn get_rid_of_chatsender(ctx: BotContext, sender_chat: types.Chat) {
   api.ban_chat_sender_chat(
     ctx.config.api_client,
     types.BanChatSenderChatParameters(
       chat_id: Int(ctx.update.chat_id),
       sender_chat_id: sender_chat.id,
     ),
+  )
+  |> result.map_error(log_err)
+}
+
+pub fn get_rid_of_reaction(
+  ctx: BotContext,
+  chat_id: Int,
+  message_id: Int,
+  user_id: Int,
+  reaction: types.ReactionType,
+) {
+  api.delete_message_reaction(
+    ctx.config.api_client,
+    types.DeleteMessageReactionParameters(
+      chat_id: Int(chat_id),
+      message_id:,
+      user_id:,
+      reaction:,
+    ),
+  )
+  |> result.map_error(log_err)
+}
+
+/// Identifier of the target message
+/// Identifier of the user who set the reaction
+/// The reaction to remove from the message
+pub fn unban_chat_member(ctx: BotContext, chat_id: Int, user_id: Int) {
+  api.unban_chat_member(
+    ctx.config.api_client,
+    types.UnbanChatMemberParameters(
+      chat_id: Int(chat_id),
+      user_id:,
+      only_if_banned: Some(True),
+    ),
+  )
+  |> result.map_error(log_err)
+}
+
+pub fn unban_chat_sender_chat(
+  ctx: BotContext,
+  chat_id: Int,
+  sender_chat_id: Int,
+) {
+  api.unban_chat_sender_chat(
+    ctx.config.api_client,
+    types.UnbanChatSenderChatParameters(chat_id: Int(chat_id), sender_chat_id:),
   )
   |> result.map_error(log_err)
 }
@@ -66,12 +112,12 @@ pub fn get_chat(ctx: BotContext, chat_id: Int) {
 pub fn get_chat_administrators(ctx: BotContext, chat_id: Int) {
   api.get_chat_administrators(
     ctx.config.api_client,
-    GetChatAdministratorsParameters(Int(chat_id)),
+    GetChatAdministratorsParameters(Int(chat_id), Some(True)),
   )
   |> result.map_error(log_err)
 }
 
-pub fn check_cas(user_id: Int) -> Bool {
+pub fn check_cas(user_id: Int) -> Result(Int, error.BotError) {
   let assert Ok(base_req) =
     request.to(
       "https://api.cas.chat/check?user_id=" <> user_id |> int.to_string,
@@ -82,20 +128,26 @@ pub fn check_cas(user_id: Int) -> Bool {
     log.print_err(e |> string.inspect)
     error.CasCheckError(e)
   })
-  |> result.try(fn(x) { x.body |> decode |> Ok() })
-  |> result.unwrap(False)
+  |> result.try(fn(x) { x.body |> decode_offences })
 }
 
-fn decode(str: String) -> Bool {
+fn decode_offences(str: String) {
   let ok_decoder = {
     use ok <- decode.field("ok", decode.bool)
-    decode.success(ok)
+    case ok {
+      True -> {
+        use offences <- decode.subfield(["result", "offenses"], decode.int)
+        decode.success(offences)
+      }
+      False -> decode.failure(0, "")
+    }
   }
 
-  case json.parse(str, ok_decoder) {
-    Ok(val) -> val
-    Error(_) -> False
-  }
+  json.parse(str, ok_decoder)
+  |> result.map_error(fn(e) {
+    log.print_err(e |> string.inspect)
+    error.InvalidValueError(e)
+  })
 }
 
 fn log_err(e) {

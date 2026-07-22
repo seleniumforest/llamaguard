@@ -1,67 +1,25 @@
 import gleam/bool
-import gleam/int
-import gleam/json
-import gleam/option.{None, Some}
 import gleam/result
 import infra/alias.{type BotContext}
 import infra/api_calls
-import infra/args
+import infra/cmd_utils
+import infra/handle
 import infra/helpers
 import infra/log
-import infra/reply.{reply, replyf}
-import infra/storage/chat_settings as cs_storage
 import models/error.{type BotError}
 import telega/model/types
-import telega/update.{type Command, type Update, ChatMemberUpdate}
+import telega/update.{type Command, type Update}
 
 pub fn command(ctx: BotContext, cmd: Command) -> Result(BotContext, BotError) {
-  let args_count = args.args_count(cmd.text)
-
-  case args.try_parse_int(cmd.text, 1) {
-    None -> {
-      let current_state = ctx.session.chat_settings.kick_new_accounts
-      case current_state, args_count {
-        //when user has enabled kick_new_accounts feature, and provides no arguments
-        cs, ac if cs > 0 && ac == 0 -> {
-          let new_state = 0
-          set_state(ctx, current_state, new_state)
-        }
-        _, _ -> reply(ctx, "Usage: /kickNewAccounts <id_to_kick>")
-      }
-    }
-    Some(num) -> {
-      let current_state = ctx.session.chat_settings.kick_new_accounts
-      let new_state = num
-
-      set_state(ctx, current_state, new_state)
-    }
-  }
-  |> result.try(fn(_) { Ok(ctx) })
-}
-
-fn set_state(ctx: BotContext, current_state: Int, new_state: Int) {
-  cs_storage.save_chat_property(
-    ctx.session.db,
-    ctx.update.chat_id,
+  cmd_utils.handle_number_and_reply(
+    ctx,
+    cmd,
     ["kick_new_accounts"],
-    json.int(new_state),
+    fn(cs) { cs.kick_new_accounts },
+    "Success: joining users with telegram id over {0} will be kicked.",
+    "Success: joining users with telegram id over {0} will NOT be kicked anymore.",
+    "Usage: /kickNewAccounts <id_to_kick>",
   )
-  |> result.try(fn(_) {
-    case new_state {
-      ns if ns > 0 ->
-        replyf(
-          ctx,
-          "Success: joining users with telegram id over {0} will be kicked",
-          [new_state |> int.to_string()],
-        )
-      _ ->
-        replyf(
-          ctx,
-          "Success: joining users with telegram id over {0} will NOT be kicked",
-          [current_state |> int.to_string()],
-        )
-    }
-  })
 }
 
 pub fn checker(
@@ -69,28 +27,44 @@ pub fn checker(
   upd: Update,
   next: fn(BotContext, Update) -> Nil,
 ) -> Nil {
+  let next = fn() { next(ctx, upd) }
   let ids_to_delete = ctx.session.chat_settings.kick_new_accounts
+  use <- bool.lazy_guard(ids_to_delete <= 0, next)
 
-  case upd, ids_to_delete {
-    ChatMemberUpdate(chat_member_updated:, ..), itd if itd > 0 -> {
+  use <- handle.apply_to_targets(
+    session: ctx.session,
+    trusted_senders: False,
+    non_members: True,
+    newcomers: True,
+    chatsenders: False,
+    next:,
+  )
+
+  handle.upd(
+    upd,
+    fn(_message) { next() },
+    fn(chat_member_updated) {
       case chat_member_updated.new_chat_member {
         types.ChatMemberMemberChatMember(member) -> {
           let needs_ban = member.user.id > ids_to_delete && !member.user.is_bot
-          use <- bool.lazy_guard(!needs_ban, fn() { next(ctx, upd) })
+          use <- bool.lazy_guard(!needs_ban, next)
 
           log.printf("Ctx: {0} Ban {1} reason: fresh account", [
             helpers.view_chat(chat_member_updated.chat),
             helpers.view_user(chat_member_updated.from),
           ])
 
-          api_calls.get_rid_of_user(ctx, member.user.id)
+          api_calls.get_rid_of_usersender(ctx, member.user.id)
           |> result.map(fn(_) { Nil })
-          |> result.lazy_unwrap(fn() { next(ctx, upd) })
+          |> result.lazy_unwrap(next)
         }
-        _ -> next(ctx, upd)
+        _ -> next()
       }
-    }
-
-    _, _ -> next(ctx, upd)
-  }
+    },
+    fn(_reaction) {
+      //todo
+      next()
+    },
+    next,
+  )
 }

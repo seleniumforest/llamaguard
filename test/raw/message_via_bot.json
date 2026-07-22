@@ -1,0 +1,39 @@
+{
+  "ok": true,
+  "result": [
+    {
+      "update_id": 771694316,
+      "message": {
+        "message_id": 2544,
+        "from": {
+          "id": 781245803,
+          "is_bot": false,
+          "first_name": "alpaca",
+          "username": "alpacaincrypto",
+          "language_code": "en",
+          "is_premium": true
+        },
+        "chat": {
+          "id": -1003519676531,
+          "title": "test channel Chat",
+          "type": "supergroup"
+        },
+        "date": 1781375637,
+        "text": "Предсказание для @alpacaincrypto:\n\nОсторожнее! Сегодня тебе лучше думать, прежде, чем говорить! Хотя тебе особо нечем, так что лучше просто молчи.",
+        "entities": [
+          {
+            "offset": 17,
+            "length": 15,
+            "type": "mention"
+          }
+        ],
+        "via_bot": {
+          "id": 1093817058,
+          "is_bot": true,
+          "first_name": "Предсказание",
+          "username": "PredskazBot"
+        }
+      }
+    }
+  ]
+}

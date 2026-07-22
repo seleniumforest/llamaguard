@@ -1,0 +1,70 @@
+{
+  "ok": true,
+  "result": [
+    {
+      "update_id": 771694318,
+      "message": {
+        "message_id": 2546,
+        "from": {
+          "id": 781245803,
+          "is_bot": false,
+          "first_name": "alpaca",
+          "username": "alpacaincrypto",
+          "language_code": "en",
+          "is_premium": true
+        },
+        "chat": {
+          "id": -1003519676531,
+          "title": "test channel Chat",
+          "type": "supergroup"
+        },
+        "date": 1781375662,
+        "message_thread_id": 2545,
+        "reply_to_message": {
+          "message_id": 2545,
+          "from": {
+            "id": 777000,
+            "is_bot": false,
+            "first_name": "Telegram"
+          },
+          "sender_chat": {
+            "id": -1002821928697,
+            "title": "test channel",
+            "username": "alpacatestch",
+            "type": "channel"
+          },
+          "chat": {
+            "id": -1003519676531,
+            "title": "test channel Chat",
+            "type": "supergroup"
+          },
+          "date": 1781375654,
+          "forward_origin": {
+            "type": "channel",
+            "chat": {
+              "id": -1002821928697,
+              "title": "test channel",
+              "username": "alpacatestch",
+              "type": "channel"
+            },
+            "message_id": 48,
+            "author_signature": "alpaca",
+            "date": 1781375651
+          },
+          "is_automatic_forward": true,
+          "forward_from_chat": {
+            "id": -1002821928697,
+            "title": "test channel",
+            "username": "alpacatestch",
+            "type": "channel"
+          },
+          "forward_from_message_id": 48,
+          "forward_signature": "alpaca",
+          "forward_date": 1781375651,
+          "text": "post in the channel]"
+        },
+        "text": "comment from user"
+      }
+    }
+  ]
+}
