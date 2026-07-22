@@ -4,26 +4,11 @@ import gleam/option.{type Option, None, Some}
 import gleam/string
 import infra/alias
 import infra/helpers
-import infra/log
 import models/bot_session.{type BotSession}
 import models/error.{type BotError, CannotFindRealSender}
 import models/user_chat
 import telega/model/types.{type Message}
 import telega/update.{type Update}
-
-pub fn get_real_sender_by_msg(message: Message) -> #(Int, Option(String)) {
-  real_sender(
-    message,
-    fn(from) { #(from.id, from.username) },
-    fn(sc) { #(sc.id, sc.username) },
-    fn() {
-      panic as log.format(
-          "WARN: this code should be unreachable (fn: get_real_sender_id). Some shit may happened. Message: {0}",
-          [message |> string.inspect],
-        )
-    },
-  )
-}
 
 pub fn apply_to_targets(
   session session: BotSession(a),

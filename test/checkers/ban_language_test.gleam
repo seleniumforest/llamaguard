@@ -125,6 +125,7 @@ fn call(
       start_time: None,
       log_prefix: None,
       bot_info: factory.bot_user(),
+      dependencies: Nil,
     )
     |> setup.with_middlewares(update, s)
     |> setup.with_settings(settings)

@@ -41,7 +41,7 @@ pub fn reply(
           message_effect_id: None,
           allow_paid_broadcast: None,
           reply_parameters: Some(ReplyParameters(
-            message_id: message.message_id,
+            message_id: Some(message.message_id),
             chat_id: Some(types.Int(ctx.update.chat_id)),
             checklist_task_id: None,
             allow_sending_without_reply: None,
@@ -50,6 +50,7 @@ pub fn reply(
             quote_entities: None,
             quote_position: None,
             poll_option_id: None,
+            ephemeral_message_id: None,
           )),
           reply_markup: None,
         ),
@@ -84,7 +85,7 @@ pub fn reply_markup(
           message_effect_id: None,
           allow_paid_broadcast: None,
           reply_parameters: Some(ReplyParameters(
-            message_id: message.message_id,
+            message_id: Some(message.message_id),
             chat_id: Some(types.Int(ctx.update.chat_id)),
             checklist_task_id: None,
             allow_sending_without_reply: None,
@@ -93,6 +94,7 @@ pub fn reply_markup(
             quote_entities: None,
             quote_position: None,
             poll_option_id: None,
+            ephemeral_message_id: None,
           )),
           reply_markup: Some(markup),
         ),

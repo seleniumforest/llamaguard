@@ -42,10 +42,7 @@ pub fn checker(
 
   handle.upd(
     upd,
-    fn(_message) {
-      //todo
-      next()
-    },
+    fn(_message) { next() },
     fn(chat_member_updated) {
       case chat_member_updated.new_chat_member {
         types.ChatMemberMemberChatMember(member) -> {

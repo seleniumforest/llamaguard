@@ -4,4 +4,4 @@ import models/error.{type BotError}
 import telega/bot.{type Context}
 
 pub type BotContext =
-  Context(BotSession(kvstorage.StorageMessage), BotError)
+  Context(BotSession(kvstorage.StorageMessage), BotError, Nil)
