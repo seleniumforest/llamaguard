@@ -40,7 +40,7 @@ pub fn checker(
     trusted_senders: False,
     non_members: True,
     newcomers: False,
-    chatsenders: False,
+    chatsenders: True,
     next:,
   )
 
@@ -120,7 +120,7 @@ fn handle_message(ctx: BotContext, message: types.Message, next: fn() -> Nil) {
   )
 }
 
-fn handle_reaction(
+pub fn handle_reaction(
   ctx: BotContext,
   upd: Update,
   message_reaction_updated: types.MessageReactionUpdated,
@@ -130,7 +130,6 @@ fn handle_reaction(
     message_reaction_updated.new_reaction |> list.is_empty,
     fn() { Ok(next()) },
   )
-
   //idk, should we handle also chats here
   case message_reaction_updated.user, message_reaction_updated.actor_chat {
     _, Some(actor_chat) -> {
@@ -138,17 +137,21 @@ fn handle_reaction(
         helpers.view_chat(message_reaction_updated.chat),
         helpers.view_chat(actor_chat),
       ])
-      message_reaction_updated.new_reaction
-      |> list.try_each(fn(x) {
-        api_calls.get_rid_of_reaction(
-          ctx,
-          message_reaction_updated.chat.id,
-          message_reaction_updated.message_id,
-          actor_chat.id,
-          x,
-        )
-      })
-      |> result.try(fn(_) { api_calls.get_rid_of_chatsender(ctx, actor_chat) })
+
+      // TelegramApiError(400, "Bad Request: invalid user_id specified")
+      // message_reaction_updated.new_reaction
+      // |> list.try_each(fn(x) {
+      //   api_calls.get_rid_of_reaction(
+      //     ctx,
+      //     message_reaction_updated.chat.id,
+      //     message_reaction_updated.message_id,
+      //     actor_chat.id,
+      //     x,
+      //   )
+      // })
+      // |> result.try(fn(_) { api_calls.get_rid_of_chatsender(ctx, actor_chat) })
+
+      api_calls.get_rid_of_chatsender(ctx, actor_chat)
       |> result.try(fn(_) { Ok(Nil) })
     }
     Some(user), _ -> {

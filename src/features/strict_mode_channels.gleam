@@ -1,6 +1,5 @@
+import features/strict_mode_nonmembers
 import gleam/bool
-import gleam/list
-import gleam/option.{None, Some}
 import gleam/result
 import infra/alias.{type BotContext}
 import infra/api_calls
@@ -66,40 +65,16 @@ pub fn checker(
       next()
     },
     fn(message_reaction_updated) {
-      use <- bool.lazy_guard(
-        message_reaction_updated.new_reaction |> list.is_empty,
+      //soft assert
+      use <- bool.lazy_guard(!ctx.session.is_sender_a_chat, next)
+
+      strict_mode_nonmembers.handle_reaction(
+        ctx,
+        upd,
+        message_reaction_updated,
         next,
       )
-
-      let current_chat = message_reaction_updated.chat
-      case message_reaction_updated.actor_chat {
-        Some(actor_chat) -> {
-          log.printf(
-            "Ctx: {0} Ban {1} reason: anon reaction as a channel (strict mode)",
-            [
-              helpers.view_chat(current_chat),
-              helpers.view_chat(actor_chat),
-            ],
-          )
-
-          message_reaction_updated.new_reaction
-          |> list.try_each(fn(reaction) {
-            api_calls.get_rid_of_reaction(
-              ctx,
-              current_chat.id,
-              message_reaction_updated.message_id,
-              actor_chat.id,
-              reaction,
-            )
-          })
-          |> result.try(fn(_) {
-            api_calls.get_rid_of_chatsender(ctx, actor_chat)
-          })
-          |> result.try(fn(_) { Ok(Nil) })
-          |> result.lazy_unwrap(next)
-        }
-        None -> next()
-      }
+      |> result.lazy_unwrap(next)
     },
     next,
   )
