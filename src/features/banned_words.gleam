@@ -63,34 +63,132 @@ pub fn checker(
     next:,
   )
 
-  use message <- handle.msg(upd, next)
+  handle.upd(
+    upd,
+    fn(message) {
+      handle.real_sender(
+        message,
+        fn(user) {
+          let contains_banned =
+            helpers.contains_opt(banned_words, message.text)
+            || helpers.contains_opt(banned_words, message.caption)
+            || helpers.contains(banned_words, helpers.get_fullname(user))
 
-  let contains_banned =
-    helpers.contains_opt(banned_words, message.text)
-    || helpers.contains_opt(banned_words, message.caption)
-    || helpers.contains(banned_words, helpers.try_get_fullname(message.from))
-    || helpers.contains_opt(
-      banned_words,
-      message.sender_chat
-        |> option.then(fn(x) { x.title }),
-    )
+          use <- bool.lazy_guard(!contains_banned, next)
 
-  use <- bool.lazy_guard(!contains_banned, next)
+          log.printf(
+            "Ctx: {0} Ban {1} Filter: banned_words Reason: banned word in message or name.",
+            [
+              helpers.view_chat(message.chat),
+              helpers.view_user(user),
+            ],
+          )
 
-  log.printf("Ctx: {0} Ban {1} reason: banned word in message or name.", [
-    helpers.view_chat(message.chat),
-    handle.view_sender(message),
-  ])
+          api_calls.get_rid_of_msg(ctx, message.message_id)
+          |> result.try(fn(_) { api_calls.get_rid_of_usersender(ctx, user.id) })
+          |> result.map(fn(_) { Nil })
+          |> result.lazy_unwrap(next)
+        },
+        fn(chatsender) {
+          let contains_banned =
+            helpers.contains_opt(banned_words, message.text)
+            || helpers.contains_opt(banned_words, message.caption)
+            || helpers.contains_opt(banned_words, chatsender.title)
 
-  api_calls.get_rid_of_msg(ctx, message.message_id)
-  |> result.try(fn(_) {
-    handle.real_sender(
-      message,
-      fn(user) { api_calls.get_rid_of_usersender(ctx, user.id) },
-      fn(chat) { api_calls.get_rid_of_chatsender(ctx, chat) },
-      fn() { panic as "unreachable" },
-    )
-  })
-  |> result.map(fn(_) { Nil })
-  |> result.lazy_unwrap(next)
+          use <- bool.lazy_guard(!contains_banned, next)
+
+          log.printf(
+            "Ctx: {0} Ban {1} Filter: banned_words Reason: banned word in message or name.",
+            [
+              helpers.view_chat(message.chat),
+              helpers.view_chat(chatsender),
+            ],
+          )
+
+          api_calls.get_rid_of_msg(ctx, message.message_id)
+          |> result.try(fn(_) {
+            api_calls.get_rid_of_chatsender(ctx, chatsender)
+          })
+          |> result.map(fn(_) { Nil })
+          |> result.lazy_unwrap(next)
+        },
+        next,
+      )
+    },
+    fn(chat_member_updated) {
+      use user <- handle.joined_user(chat_member_updated, next)
+
+      let contains_banned =
+        helpers.contains(banned_words, helpers.get_fullname(user))
+
+      use <- bool.lazy_guard(!contains_banned, next)
+
+      log.printf(
+        "Ctx: {0} Ban {1} Filter: banned_words Reason: user joined with banned word in name.",
+        [
+          helpers.view_chat(chat_member_updated.chat),
+          helpers.view_user(user),
+        ],
+      )
+
+      api_calls.get_rid_of_usersender(ctx, user.id)
+      |> result.map(fn(_) { Nil })
+      |> result.lazy_unwrap(next)
+    },
+    fn(reaction) {
+      handle.reaction_sender(
+        reaction,
+        fn(user) {
+          let contains_banned =
+            helpers.contains(banned_words, helpers.get_fullname(user))
+
+          use <- bool.lazy_guard(!contains_banned, next)
+
+          log.printf(
+            "Ctx: {0} Ban {1} Filter: banned_words Reason: reaction from user with banned word in name.",
+            [
+              helpers.view_chat(reaction.chat),
+              helpers.view_user(user),
+            ],
+          )
+
+          api_calls.get_rid_of_usersender_reactions(
+            ctx,
+            reaction.chat.id,
+            user.id,
+          )
+          |> result.try(fn(_) { api_calls.get_rid_of_usersender(ctx, user.id) })
+          |> result.map(fn(_) { Nil })
+          |> result.lazy_unwrap(next)
+        },
+        fn(chatsender) {
+          let contains_banned =
+            helpers.contains_opt(banned_words, chatsender.title)
+
+          use <- bool.lazy_guard(!contains_banned, next)
+
+          log.printf(
+            "Ctx: {0} Ban {1} Filter: banned_words Reason: reaction from chat with banned word in title.",
+            [
+              helpers.view_chat(reaction.chat),
+              helpers.view_chat(chatsender),
+            ],
+          )
+
+          api_calls.get_rid_of_chatsender_reactions(
+            ctx,
+            reaction.chat.id,
+            chatsender.id,
+          )
+          |> result.try(fn(_) {
+            api_calls.get_rid_of_chatsender(ctx, chatsender)
+          })
+          |> result.map(fn(_) { Nil })
+          |> result.lazy_unwrap(next)
+        },
+        next,
+      )
+    },
+    next,
+  )
 }

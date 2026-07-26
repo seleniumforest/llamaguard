@@ -45,13 +45,15 @@ pub fn checker(
     upd,
     fn(message) {
       let handle_usersender = fn(from) {
-        let is_system_msg = helpers.is_service_msg(message)
         let is_clone = is_user_clone(from, message.chat)
-        use <- bool.lazy_guard(!is_clone || is_system_msg, next)
-        log.printf("Ctx: {0} Ban {1} reason: chat clone", [
-          helpers.view_chat(message.chat),
-          helpers.view_user(from),
-        ])
+        use <- bool.lazy_guard(!is_clone, next)
+        log.printf(
+          "Ctx: {0} Ban {1} Filter: check_chat_clones Reason: chat clone",
+          [
+            helpers.view_chat(message.chat),
+            helpers.view_user(from),
+          ],
+        )
 
         api_calls.get_rid_of_msg(ctx, message.message_id)
         |> result.try(fn(_) { api_calls.get_rid_of_usersender(ctx, from.id) })
@@ -68,10 +70,13 @@ pub fn checker(
         case compare_result {
           False -> next()
           True -> {
-            log.printf("Ctx: {0} Ban {1} reason: chat clone", [
-              helpers.view_chat(message.chat),
-              helpers.view_chat(sc),
-            ])
+            log.printf(
+              "Ctx: {0} Ban {1} Filter: check_chat_clones Reason: chat clone",
+              [
+                helpers.view_chat(message.chat),
+                helpers.view_chat(sc),
+              ],
+            )
 
             api_calls.get_rid_of_msg(ctx, message.message_id)
             |> result.try(fn(_) { api_calls.get_rid_of_chatsender(ctx, sc) })
@@ -88,10 +93,13 @@ pub fn checker(
         is_user_clone(chat_member_updated.from, chat_member_updated.chat)
       use <- bool.lazy_guard(!is_clone, next)
 
-      log.printf("Ctx: {0} Ban {1} reason: chat clone", [
-        helpers.view_chat(chat_member_updated.chat),
-        helpers.view_user(chat_member_updated.from),
-      ])
+      log.printf(
+        "Ctx: {0} Ban {1} Filter: check_chat_clones Reason: chat clone",
+        [
+          helpers.view_chat(chat_member_updated.chat),
+          helpers.view_user(chat_member_updated.from),
+        ],
+      )
 
       api_calls.get_rid_of_usersender(ctx, chat_member_updated.from.id)
       |> result.try(fn(_) { Ok(Nil) })

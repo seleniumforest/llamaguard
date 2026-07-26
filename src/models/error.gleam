@@ -15,4 +15,5 @@ pub type BotError {
   DbUpdateError
   DbSaveEmptyResultError
   EmptyDataError
+  CacheError
 }

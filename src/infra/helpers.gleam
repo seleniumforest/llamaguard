@@ -1,10 +1,18 @@
 import gleam/bool
 import gleam/int
+import gleam/json
 import gleam/list
 import gleam/option.{type Option, None, Some}
+import gleam/regexp
+import gleam/result
 import gleam/string
 import gleam/time/timestamp
+import infra/alias.{type BotContext}
+import infra/api_calls
 import infra/log
+import models/error
+import telega/model/decoder
+import telega/model/encoder
 import telega/model/types.{type Message}
 
 pub fn is_forwarded_msg(msg: Message) {
@@ -112,43 +120,88 @@ pub fn contains_opt(words: List(String), text: option.Option(String)) {
   }
 }
 
-pub fn is_service_msg(message: Message) {
-  let is_user_join_or_leave_system_msg = case
-    message.left_chat_member,
-    message.new_chat_members
-  {
-    Some(_), None -> True
-    None, Some(users) -> users |> list.length > 0
-    _, _ -> False
+pub fn check_banned_lang(banned_langs: List(String), text: String) {
+  use <- bool.guard(string.is_empty(text), False)
+
+  let regexp_str =
+    "["
+    <> banned_langs
+    |> list.map(fn(x) { "\\p{Script_Extensions=" <> x <> "}" })
+    |> string.join("")
+    <> "]"
+
+  case regexp.from_string(regexp_str) {
+    Ok(reg) -> regexp.check(reg, text)
+    Error(e) -> {
+      log.printf_err(
+        "WARN: Could not build regexp to check message for banned languages. "
+          <> "Skipping check for banned languages. "
+          <> "regexp_str: {0}, banned_languages: {1}, err:{2}",
+        [
+          regexp_str,
+          banned_langs |> string.inspect,
+          e |> string.inspect,
+        ],
+      )
+
+      False
+    }
   }
+}
 
-  is_user_join_or_leave_system_msg
-  //https://core.telegram.org/bots/api#message
-  //idk should i check all service msgs, maybe in future
+const ttl = 60_000
 
-  // || message.new_chat_title |> option.is_some
-  // || message.new_chat_photo |> option.is_some
-  // || message.delete_chat_photo |> option.is_some
-  // || message.group_chat_created |> option.is_some
-  // || message.supergroup_chat_created |> option.is_some
-  // || message.channel_chat_created |> option.is_some
-  // || message.message_auto_delete_timer_changed |> option.is_some
-  // || message.migrate_to_chat_id |> option.is_some
-  // || message.migrate_from_chat_id |> option.is_some
-  // || message.pinned_message |> option.is_some
-  // || message.video_chat_started |> option.is_some
-  // || message.video_chat_ended |> option.is_some
-  // || message.video_chat_participants_invited |> option.is_some
-  // || message.video_chat_scheduled |> option.is_some
-  // || message.proximity_alert_triggered |> option.is_some
-  // || message.successful_payment |> option.is_some
-  // || message.refunded_payment |> option.is_some
-  // || message.users_shared |> option.is_some
-  // || message.chat_shared |> option.is_some
-  // || message.gift |> option.is_some
-  // || message.unique_gift |> option.is_some
-  // || message.gift_upgrade_sent |> option.is_some
-  // || message.write_access_allowed |> option.is_some
-  // || message.boost_added |> option.is_some
-  // || message.boost_added |> option.is_some
+pub fn get_chat_member_cached(ctx: BotContext, chat_id: Int, user_id: Int) {
+  let key = int.to_string(chat_id) <> ":" <> int.to_string(user_id)
+  use <- bool.lazy_guard(user_id <= 0, fn() {
+    let msg =
+      log.format("fn get_chat_member_cached negative user_id {0} supplied", [
+        int.to_string(user_id),
+      ])
+
+    log.print(msg)
+    Error(error.GenericError(msg))
+  })
+
+  case ctx.dependencies.cache.get(key) {
+    Ok(got) ->
+      case got {
+        Some(json) -> {
+          json.parse(json, decoder.chat_member_decoder())
+          |> result.map_error(fn(e) { error.InvalidValueError(e) })
+        }
+        None -> {
+          api_calls.get_chat_member(ctx, chat_id, user_id)
+          |> result.map_error(fn(e) {
+            log.printf_err(
+              "WARN: get_chat_member returned error. fn get_chat_member_cached err {0} Some shit may happened.",
+              [string.inspect(e)],
+            )
+
+            e
+          })
+          |> result.try(fn(member) {
+            let encoded = encoder.encode_chat_member(member) |> json.to_string
+
+            ctx.dependencies.cache.set_with_ttl(key, encoded, ttl)
+            |> result.map_error(fn(e) {
+              log.printf_err(
+                "WARN: set_with_ttl returned error. fn get_chat_member_cached err {0} Some shit may happened.",
+                [string.inspect(e)],
+              )
+
+              e
+            })
+            |> result.map(fn(_) { member })
+          })
+        }
+      }
+    Error(e) -> {
+      log.printf_err(
+        "WARN: cache.get returned error. fn get_chat_member_cached err {0} Some shit may happened.",
+        [string.inspect(e)],
+      )
+      api_calls.get_chat_member(ctx, chat_id, user_id)
+    }
+  }
 }

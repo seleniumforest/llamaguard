@@ -29,10 +29,12 @@ import middlewares/newcomers_events.{newcomers_events}
 import middlewares/resources.{inject_resources}
 import middlewares/setup_flags.{setup_flags}
 import models/bot_session
+import models/deps
 import models/error.{type BotError}
 import telega
 import telega/bot.{SessionSettings}
 import telega/router
+import telega/storage/ets
 import telega/update.{type Update}
 import telega_httpc
 
@@ -40,6 +42,7 @@ pub fn main() {
   dot.new() |> dot.load
   let db = kvstorage.init("file:data.sqlite3")
   let resources = resources.load_static_resources()
+  let assert Ok(cache) = ets.new("cache")
 
   let router =
     router.new("default")
@@ -73,9 +76,11 @@ pub fn main() {
   let assert Ok(token) = env.get_string("BOT_TOKEN")
   let assert Ok(_) =
     telega.new_for_polling(telega_httpc.new(token:))
+    |> telega.with_dependencies(deps.Deps(cache:))
     |> telega.with_router(router)
     |> telega.set_drop_pending_updates(True)
-    |> telega.with_catch_handler(fn(_ctx, err) {
+    |> telega.with_catch_handler(fn(ctx, err) {
+      log.print_err(ctx.session |> string.inspect)
       log.print_err(err |> string.inspect)
       Ok(Nil)
     })

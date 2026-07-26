@@ -4,9 +4,11 @@ import gleam/io
 import gleam/option.{None}
 import gleeunit/should
 import models/chat_settings
+import models/deps
 import setup.{type TestSetup}
 import telega/bot
 import telega/model/types
+import telega/storage/ets
 import telega/testing/context
 import telega/testing/factory
 import telega/update
@@ -36,7 +38,7 @@ fn call(
   let update = update.raw_to_update(upd(s))
   let settings =
     chat_settings.ChatSettings(..s.session.chat_settings, ban_channels:)
-
+  let assert Ok(cache) = ets.new("cache")
   let ctx =
     bot.Context(
       key: "test_chat:123",
@@ -47,7 +49,7 @@ fn call(
       start_time: None,
       log_prefix: None,
       bot_info: factory.bot_user(),
-      dependencies: Nil,
+      dependencies: deps.Deps(cache:),
     )
     |> setup.with_middlewares(update, s)
     |> setup.with_settings(settings)

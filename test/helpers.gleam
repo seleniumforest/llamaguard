@@ -51,7 +51,7 @@ pub fn should_check_test() {
   )
 
   handle.apply_to_targets(
-    session: bot_session.BotSession(..s, is_sender_on_quarantine: True),
+    session: bot_session.BotSession(..s, is_sender_newcomer: True),
     trusted_senders: False,
     non_members: False,
     newcomers: True,
@@ -85,7 +85,7 @@ pub fn should_check_test() {
   )
 
   handle.apply_to_targets(
-    session: bot_session.BotSession(..s, is_sender_on_quarantine: True),
+    session: bot_session.BotSession(..s, is_sender_newcomer: True),
     trusted_senders: False,
     non_members: True,
     newcomers: True,

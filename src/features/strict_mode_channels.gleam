@@ -48,7 +48,7 @@ pub fn checker(
           use <- bool.lazy_guard(!has_sus_content, next)
 
           log.printf(
-            "Ctx: {0} Delete message from {1} reason: posts sus content under chat's account",
+            "Ctx: {0} Ban {1} Filter: strict_mode_channels Reason: posts sus content under chat's account",
             [helpers.view_chat(message.chat), helpers.view_chat(channel)],
           )
 
@@ -65,16 +65,36 @@ pub fn checker(
       next()
     },
     fn(message_reaction_updated) {
-      //soft assert
+      //soft assert just for the case
       use <- bool.lazy_guard(!ctx.session.is_sender_a_chat, next)
 
-      strict_mode_nonmembers.handle_reaction(
-        ctx,
-        upd,
+      handle.reaction_sender(
         message_reaction_updated,
+        fn(_) { next() },
+        fn(actor_chat) {
+          log.printf(
+            "Ctx: {0} Ban {1} Filter: strict_mode_nonmembers Reason: anon reaction as a channel",
+            [
+              helpers.view_chat(message_reaction_updated.chat),
+              helpers.view_chat(actor_chat),
+            ],
+          )
+
+          api_calls.get_rid_of_chatsender(ctx, actor_chat)
+          |> result.try(fn(_) {
+            api_calls.get_rid_of_chatsender_reactions(
+              ctx,
+              message_reaction_updated.chat.id,
+              actor_chat.id,
+            )
+          })
+          |> result.try(fn(_) { Ok(Nil) })
+          |> result.lazy_unwrap(next)
+        },
         next,
       )
-      |> result.lazy_unwrap(next)
+
+      next()
     },
     next,
   )

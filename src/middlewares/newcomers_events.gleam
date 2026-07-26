@@ -28,29 +28,45 @@ pub fn newcomers_events() {
           use uc <- handle.userchat(ctx, lazynext)
           use <- bool.lazy_guard(!uc.on_quarantine, lazynext)
 
-          message.text
-          |> option.then(fn(text) {
-            let _ =
-              uc_repo.save_user_chat_property(
-                ctx.session.db,
-                ctx.session.real_sender.0,
-                upd.chat_id,
-                ["messages"],
-                json.array(
-                  [
-                    user_chat.UserMessage(message.message_id, text),
-                    ..list.filter(uc.messages, fn(m) {
-                      m.id != message.message_id
-                    })
-                  ],
-                  user_chat.message_encoder,
-                ),
-              )
+          let ctx = case message.text {
+            Some(text) -> {
+              let new_state = [
+                user_chat.UserMessage(message.message_id, text),
+                ..list.filter(uc.messages, fn(m) { m.id != message.message_id })
+              ]
+              let save_result =
+                uc_repo.save_user_chat_property(
+                  ctx.session.db,
+                  ctx.session.real_sender.0,
+                  upd.chat_id,
+                  ["messages"],
+                  json.array(new_state, user_chat.message_encoder),
+                )
 
-            Some(text)
+              case save_result {
+                Ok(is_found_and_updated) ->
+                  case is_found_and_updated {
+                    True ->
+                      bot.Context(
+                        ..ctx,
+                        session: bot_session.BotSession(
+                          ..ctx.session,
+                          user_chat: Some(
+                            user_chat.UserChat(..uc, messages: new_state),
+                          ),
+                        ),
+                      )
+                    False -> ctx
+                  }
+                Error(_) -> ctx
+              }
+            }
+            None -> ctx
+          }
+
+          use <- bool.lazy_guard(!ctx.session.is_trusted_sender, fn() {
+            next(ctx, upd)
           })
-
-          use <- bool.lazy_guard(!ctx.session.is_trusted_sender, lazynext)
 
           let _ =
             uc_repo.save_user_chat_property(
@@ -81,7 +97,7 @@ pub fn newcomers_events() {
               err
             })
 
-          lazynext()
+          next(ctx, upd)
         },
         fn(chat_member_updated) {
           //when user joins, put him to "quarantine"

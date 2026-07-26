@@ -56,31 +56,52 @@ pub fn checker(
 ) -> Nil {
   let next = fn() { next(ctx, upd) }
   use <- bool.lazy_guard(!ctx.session.chat_settings.ban_channels, next)
-  // use <- handle.apply_to_targets(
-  //   session: ctx.session,
-  //   trusted_senders: False,
-  //   non_members: False,
-  //   newcomers: False,
-  //   chatsenders: True,
-  //   next:,
-  // )
+  use <- handle.apply_to_targets(
+    session: ctx.session,
+    trusted_senders: False,
+    non_members: False,
+    newcomers: False,
+    chatsenders: True,
+    next:,
+  )
 
-  use message <- handle.msg(upd, next)
-  handle.real_sender(
-    message,
-    fn(_) { next() },
-    fn(sc) {
-      use <- bool.lazy_guard(ctx.session.is_trusted_sender, next)
+  handle.upd(
+    upd,
+    fn(message) {
+      handle.real_sender(
+        message,
+        fn(_user) { next() },
+        fn(sc) {
+          log.printf(
+            "Ctx: {0} Ban {1} Filter: ban_channels Reason: restricted sending messages on behalf of a chat",
+            [helpers.view_chat(message.chat), helpers.view_chat(sc)],
+          )
 
-      log.printf(
-        "Ctx: {0} Ban {1} reason: restricted sending on behalf of a chat",
-        [helpers.view_chat(message.chat), helpers.view_chat(sc)],
+          api_calls.get_rid_of_msg(ctx, message.message_id)
+          |> result.try(fn(_) { api_calls.get_rid_of_chatsender(ctx, sc) })
+          |> result.try(fn(_) { Ok(Nil) })
+          |> result.lazy_unwrap(next)
+        },
+        next,
       )
+    },
+    fn(_chat_member_updated) { next() },
+    fn(reaction) {
+      handle.reaction_sender(
+        reaction,
+        fn(_user) { next() },
+        fn(sc) {
+          log.printf(
+            "Ctx: {0} Ban {1} Filter: ban_channels Reason: restricted sending reactions on behalf of a chat",
+            [helpers.view_chat(reaction.chat), helpers.view_chat(sc)],
+          )
 
-      api_calls.get_rid_of_msg(ctx, message.message_id)
-      |> result.try(fn(_) { api_calls.get_rid_of_chatsender(ctx, sc) })
-      |> result.try(fn(_) { Ok(Nil) })
-      |> result.lazy_unwrap(next)
+          api_calls.get_rid_of_chatsender(ctx, sc)
+          |> result.try(fn(_) { Ok(Nil) })
+          |> result.lazy_unwrap(next)
+        },
+        next,
+      )
     },
     next,
   )

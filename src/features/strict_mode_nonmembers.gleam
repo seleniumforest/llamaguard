@@ -55,9 +55,10 @@ pub fn checker(
     },
     fn(_join) { next() },
     fn(message_reaction_updated) {
-      //check REACTIONS from ALL users
+      //kinda dont know, how to treat channels here, should they be as "non-member" or not?
       handle_reaction(ctx, upd, message_reaction_updated, next)
       |> result.lazy_unwrap(next)
+      next()
     },
     next,
   )
@@ -67,7 +68,7 @@ fn handle_message(ctx: BotContext, message: types.Message, next: fn() -> Nil) {
   handle.real_sender(
     message,
     fn(user) {
-      use mem <- result.try(api_calls.get_chat_member(
+      use mem <- result.try(helpers.get_chat_member_cached(
         ctx,
         message.chat.id,
         user.id,
@@ -76,7 +77,7 @@ fn handle_message(ctx: BotContext, message: types.Message, next: fn() -> Nil) {
       case mem {
         types.ChatMemberLeftChatMember(member) -> {
           let restricted = strict.has_suspicious_content(message)
-          let suspicious = has_suspicious_user_profile(ctx, member)
+          let suspicious = has_suspicious_user_profile(member)
           let is_under_chat = message.sender_chat |> option.is_some
 
           use <- bool.lazy_guard(
@@ -91,11 +92,14 @@ fn handle_message(ctx: BotContext, message: types.Message, next: fn() -> Nil) {
             _, _ -> ""
           }
 
-          log.printf("Ctx: {0} Ban user {1} reason: {2}", [
-            helpers.view_chat(message.chat),
-            helpers.view_user(member.user),
-            reason,
-          ])
+          log.printf(
+            "Ctx: {0} Ban {1} Filter: strict_mode_nonmembers Reason: {2}",
+            [
+              helpers.view_chat(message.chat),
+              helpers.view_user(member.user),
+              reason,
+            ],
+          )
 
           api_calls.get_rid_of_msg(ctx, message.message_id)
           |> result.try(fn(_) {
@@ -108,7 +112,7 @@ fn handle_message(ctx: BotContext, message: types.Message, next: fn() -> Nil) {
     },
     fn(sc) {
       log.printf(
-        "Ctx: {0} Delete message from {1} reason: hiding under chat's account",
+        "Ctx: {0} Ban {1} Filter: strict_mode_nonmembers Reason: hiding under chat's account",
         [helpers.view_chat(message.chat), helpers.view_chat(sc)],
       )
 
@@ -130,74 +134,63 @@ pub fn handle_reaction(
     message_reaction_updated.new_reaction |> list.is_empty,
     fn() { Ok(next()) },
   )
-  //idk, should we handle also chats here
-  case message_reaction_updated.user, message_reaction_updated.actor_chat {
-    _, Some(actor_chat) -> {
-      log.printf("Ctx: {0} Ban {1} reason: anon reaction as a channel", [
-        helpers.view_chat(message_reaction_updated.chat),
-        helpers.view_chat(actor_chat),
-      ])
 
-      // TelegramApiError(400, "Bad Request: invalid user_id specified")
-      // message_reaction_updated.new_reaction
-      // |> list.try_each(fn(x) {
-      //   api_calls.get_rid_of_reaction(
-      //     ctx,
-      //     message_reaction_updated.chat.id,
-      //     message_reaction_updated.message_id,
-      //     actor_chat.id,
-      //     x,
-      //   )
-      // })
-      // |> result.try(fn(_) { api_calls.get_rid_of_chatsender(ctx, actor_chat) })
-
-      api_calls.get_rid_of_chatsender(ctx, actor_chat)
-      |> result.try(fn(_) { Ok(Nil) })
-    }
-    Some(user), _ -> {
-      use mem <- result.try(api_calls.get_chat_member(ctx, upd.chat_id, user.id))
+  handle.reaction_sender(
+    message_reaction_updated,
+    fn(user) {
+      use mem <- result.try(helpers.get_chat_member_cached(
+        ctx,
+        upd.chat_id,
+        user.id,
+      ))
       case mem {
         types.ChatMemberLeftChatMember(member) -> {
-          log.printf("Ctx: {0} Ban {1} reason: non-member reaction", [
-            helpers.view_chat(message_reaction_updated.chat),
-            helpers.view_user(member.user),
-          ])
+          log.printf(
+            "Ctx: {0} Ban {1} Filter: strict_mode_nonmembers Reason: non-member reaction",
+            [
+              helpers.view_chat(message_reaction_updated.chat),
+              helpers.view_user(member.user),
+            ],
+          )
 
-          message_reaction_updated.new_reaction
-          |> list.try_each(fn(x) {
-            api_calls.get_rid_of_reaction(
+          api_calls.get_rid_of_usersender(ctx, user.id)
+          |> result.try(fn(_) {
+            api_calls.get_rid_of_usersender_reactions(
               ctx,
               message_reaction_updated.chat.id,
-              message_reaction_updated.message_id,
               user.id,
-              x,
             )
-          })
-          |> result.try(fn(_) {
-            api_calls.get_rid_of_usersender(ctx, member.user.id)
           })
           |> result.try(fn(_) { Ok(Nil) })
         }
         _ -> Ok(next())
       }
-    }
-    _, _ -> Ok(next())
-  }
+    },
+    fn(actor_chat) {
+      log.printf(
+        "Ctx: {0} Ban {1} Filter: strict_mode_nonmembers Reason: anon reaction as a channel",
+        [
+          helpers.view_chat(message_reaction_updated.chat),
+          helpers.view_chat(actor_chat),
+        ],
+      )
+
+      api_calls.get_rid_of_chatsender(ctx, actor_chat)
+      |> result.try(fn(_) {
+        api_calls.get_rid_of_chatsender_reactions(
+          ctx,
+          message_reaction_updated.chat.id,
+          actor_chat.id,
+        )
+      })
+      |> result.try(fn(_) { Ok(Nil) })
+    },
+    fn() { Ok(next()) },
+  )
 }
 
-fn has_suspicious_user_profile(ctx: BotContext, member: ChatMemberLeft) -> Bool {
+fn has_suspicious_user_profile(member: ChatMemberLeft) -> Bool {
   let check_username = member.user.username |> option.is_none
-  let check_female_name = case ctx.session.chat_settings.check_female_name {
-    False -> False
-    True ->
-      helpers.get_fullname(member.user)
-      |> strict.has_woman_name(ctx.session.resources.female_names, _)
-  }
 
-  let check_id = case ctx.session.chat_settings.kick_new_accounts {
-    i if i > 0 -> member.user.id > i
-    _ -> False
-  }
-
-  check_username || check_female_name || check_id
+  check_username
 }

@@ -6,10 +6,12 @@ import gleeunit/should
 import infra/storage/user_chat as uc_repo
 import models/cached
 import models/chat_settings
+import models/deps
 import models/user_chat
 import setup.{type TestSetup}
 import telega/bot
 import telega/model/types
+import telega/storage/ets
 import telega/testing/context
 import telega/testing/factory
 import telega/update
@@ -114,7 +116,7 @@ fn call(
     }
     False -> Nil
   }
-
+  let assert Ok(cache) = ets.new("cache")
   let ctx =
     bot.Context(
       key: "test_chat:123",
@@ -125,7 +127,7 @@ fn call(
       start_time: None,
       log_prefix: None,
       bot_info: factory.bot_user(),
-      dependencies: Nil,
+      dependencies: deps.Deps(cache:),
     )
     |> setup.with_middlewares(update, s)
     |> setup.with_settings(settings)

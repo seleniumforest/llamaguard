@@ -50,20 +50,33 @@ pub fn get_rid_of_chatsender(ctx: BotContext, sender_chat: types.Chat) {
   |> result.map_error(log_err)
 }
 
-pub fn get_rid_of_reaction(
+pub fn get_rid_of_usersender_reactions(
   ctx: BotContext,
   chat_id: Int,
-  message_id: Int,
   user_id: Int,
-  reaction: types.ReactionType,
 ) {
-  api.delete_message_reaction(
+  api.delete_all_message_reactions(
     ctx.config.api_client,
-    types.DeleteMessageReactionParameters(
+    types.DeleteAllMessageReactionsParameters(
       chat_id: Int(chat_id),
-      message_id:,
-      user_id:,
-      reaction:,
+      user_id: Some(user_id),
+      actor_chat_id: option.None,
+    ),
+  )
+  |> result.map_error(log_err)
+}
+
+pub fn get_rid_of_chatsender_reactions(
+  ctx: BotContext,
+  chat_id: Int,
+  actor_chat_id: Int,
+) {
+  api.delete_all_message_reactions(
+    ctx.config.api_client,
+    types.DeleteAllMessageReactionsParameters(
+      chat_id: Int(chat_id),
+      user_id: option.None,
+      actor_chat_id: Some(actor_chat_id),
     ),
   )
   |> result.map_error(log_err)
@@ -125,7 +138,7 @@ pub fn check_cas(user_id: Int) -> Result(Int, error.BotError) {
 
   httpc.send(base_req)
   |> result.map_error(fn(e) {
-    log.print_err(e |> string.inspect)
+    log.printf_err("fn: check_cas, err: {0}", [string.inspect(e)])
     error.CasCheckError(e)
   })
   |> result.try(fn(x) { x.body |> decode_offences })
@@ -139,18 +152,18 @@ fn decode_offences(str: String) {
         use offences <- decode.subfield(["result", "offenses"], decode.int)
         decode.success(offences)
       }
-      False -> decode.failure(0, "")
+      False -> decode.success(0)
     }
   }
 
   json.parse(str, ok_decoder)
   |> result.map_error(fn(e) {
-    log.print_err(e |> string.inspect)
+    log.printf_err("fn: decode_offences, err: {0}", [string.inspect(e)])
     error.InvalidValueError(e)
   })
 }
 
 fn log_err(e) {
-  log.print_err(e |> string.inspect)
+  log.printf_err("fn: log_err, err: {0}", [string.inspect(e)])
   error.TelegaLibError(e)
 }

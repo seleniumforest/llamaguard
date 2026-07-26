@@ -7,7 +7,6 @@ import infra/handle
 import infra/helpers
 import infra/log
 import models/error.{type BotError}
-import telega/model/types
 import telega/update.{type Command, type Update}
 
 pub fn command(ctx: BotContext, cmd: Command) -> Result(BotContext, BotError) {
@@ -44,26 +43,44 @@ pub fn checker(
     upd,
     fn(_message) { next() },
     fn(chat_member_updated) {
-      case chat_member_updated.new_chat_member {
-        types.ChatMemberMemberChatMember(member) -> {
-          let needs_ban = member.user.id > ids_to_delete && !member.user.is_bot
+      use member <- handle.joined_user(chat_member_updated, next)
+      let needs_ban = member.id > ids_to_delete && !member.is_bot
+      use <- bool.lazy_guard(!needs_ban, next)
+
+      log.printf(
+        "Ctx: {0} Ban {1} Filter: kick_new_accounts Reason: fresh account",
+        [
+          helpers.view_chat(chat_member_updated.chat),
+          helpers.view_user(chat_member_updated.from),
+        ],
+      )
+
+      api_calls.get_rid_of_usersender(ctx, member.id)
+      |> result.map(fn(_) { Nil })
+      |> result.lazy_unwrap(next)
+    },
+    fn(reaction) {
+      handle.reaction_sender(
+        reaction,
+        fn(user) {
+          let needs_ban = user.id > ids_to_delete && !user.is_bot
           use <- bool.lazy_guard(!needs_ban, next)
 
-          log.printf("Ctx: {0} Ban {1} reason: fresh account", [
-            helpers.view_chat(chat_member_updated.chat),
-            helpers.view_user(chat_member_updated.from),
-          ])
+          log.printf(
+            "Ctx: {0} Ban {1} Filter: kick_new_accounts Reason: fresh account",
+            [
+              helpers.view_chat(reaction.chat),
+              helpers.view_user(user),
+            ],
+          )
 
-          api_calls.get_rid_of_usersender(ctx, member.user.id)
+          api_calls.get_rid_of_usersender(ctx, user.id)
           |> result.map(fn(_) { Nil })
           |> result.lazy_unwrap(next)
-        }
-        _ -> next()
-      }
-    },
-    fn(_reaction) {
-      //todo
-      next()
+        },
+        fn(_) { next() },
+        next,
+      )
     },
     next,
   )

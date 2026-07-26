@@ -1,5 +1,6 @@
 import gleam/bool
 import gleam/list
+import gleam/option
 import gleam/regexp
 import gleam/result
 import gleam/string
@@ -13,6 +14,7 @@ import infra/log
 import infra/reply.{reply}
 import infra/storage/user_chat as uc_repo
 import models/error.{type BotError}
+import telega/model/types
 import telega/update.{type Command}
 
 pub fn command(ctx: BotContext, cmd: Command) -> Result(BotContext, BotError) {
@@ -75,7 +77,126 @@ pub fn checker(
     chatsenders: True,
     next:,
   )
-  use message <- handle.msg(upd, next)
+
+  handle.upd(
+    upd,
+    fn(message) { check_msg(ctx, message, next) },
+    fn(chat_member_updated) {
+      use joined <- handle.joined_user(chat_member_updated, next)
+      check_joined_user(ctx, joined, chat_member_updated.chat, next)
+    },
+    fn(reaction) {
+      handle.reaction_sender(
+        reaction,
+        fn(user) { check_reacted_user(ctx, user, reaction, next) },
+        fn(chat) { check_reacted_chat(ctx, chat, reaction, next) },
+        next,
+      )
+    },
+    fn() { next() },
+  )
+}
+
+fn check_reacted_chat(
+  ctx: BotContext,
+  chatsender: types.Chat,
+  reaction: types.MessageReactionUpdated,
+  next: fn() -> Nil,
+) {
+  let text = chatsender.title |> option.unwrap("")
+
+  case
+    helpers.check_banned_lang(ctx.session.chat_settings.banned_languages, text)
+  {
+    True -> {
+      log.printf(
+        "Ctx: {0} Ban {1} Filter: ban_language Reason: reacted with restricted language symbols in the name.",
+        [
+          helpers.view_chat(reaction.chat),
+          helpers.view_chat(chatsender),
+        ],
+      )
+
+      api_calls.get_rid_of_chatsender(ctx, chatsender)
+      |> result.try(fn(_) {
+        api_calls.get_rid_of_chatsender_reactions(
+          ctx,
+          reaction.chat.id,
+          chatsender.id,
+        )
+      })
+      |> result.map(fn(_) { Nil })
+      |> result.lazy_unwrap(next)
+    }
+    False -> next()
+  }
+}
+
+fn check_reacted_user(
+  ctx: BotContext,
+  user: types.User,
+  reaction: types.MessageReactionUpdated,
+  next: fn() -> Nil,
+) {
+  let text = helpers.get_fullname(user)
+
+  case
+    helpers.check_banned_lang(ctx.session.chat_settings.banned_languages, text)
+  {
+    True -> {
+      log.printf(
+        "Ctx: {0} Ban {1} Filter: ban_language Reason: reacted with restricted language symbols in the name.",
+        [
+          helpers.view_chat(reaction.chat),
+          helpers.view_user(user),
+        ],
+      )
+
+      api_calls.get_rid_of_usersender(ctx, user.id)
+      |> result.try(fn(_) {
+        api_calls.get_rid_of_usersender_reactions(
+          ctx,
+          reaction.chat.id,
+          user.id,
+        )
+      })
+      |> result.map(fn(_) { Nil })
+      |> result.lazy_unwrap(next)
+    }
+    False -> next()
+  }
+}
+
+fn check_joined_user(
+  ctx: BotContext,
+  user: types.User,
+  chat: types.Chat,
+  next: fn() -> Nil,
+) {
+  let text = helpers.get_fullname(user)
+
+  case
+    helpers.check_banned_lang(ctx.session.chat_settings.banned_languages, text)
+  {
+    True -> {
+      log.printf(
+        "Ctx: {0} Ban {1} Filter: ban_language Reason: joined with restricted language symbols in the name.",
+        [
+          helpers.view_chat(chat),
+          helpers.view_user(user),
+        ],
+      )
+
+      let _ = uc_repo.delete_user_chat(ctx.session.db, user.id, chat.id)
+      let _ = api_calls.get_rid_of_usersender(ctx, user.id)
+
+      Nil
+    }
+    False -> next()
+  }
+}
+
+fn check_msg(ctx: BotContext, message: types.Message, next: fn() -> Nil) -> Nil {
   let text = handle.get_visible_text(message)
 
   let regexp_str =
@@ -95,10 +216,13 @@ pub fn checker(
       handle.real_sender(
         message,
         fn(from) {
-          log.printf("Ctx: {0} Ban {1} reason: restricted language symbols.", [
-            helpers.view_chat(message.chat),
-            helpers.view_user(from),
-          ])
+          log.printf(
+            "Ctx: {0} Ban {1} Filter: ban_language Reason: message with restricted language symbols.",
+            [
+              helpers.view_chat(message.chat),
+              helpers.view_user(from),
+            ],
+          )
 
           let _ =
             uc_repo.delete_user_chat(ctx.session.db, from.id, message.chat.id)

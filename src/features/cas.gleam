@@ -40,6 +40,10 @@ pub fn checker(
   handle.upd(
     upd,
     fn(message) {
+      //no need to check n times when user is on quarantine, 
+      //just check once on join or when he's writing in comments
+      use <- bool.lazy_guard(!ctx.session.is_message_a_comment, next)
+
       handle.real_sender(
         message,
         fn(from) { check_and_reply(ctx, next, message.chat, from) },
@@ -47,8 +51,14 @@ pub fn checker(
         next,
       )
     },
-    fn(join) { check_and_reply(ctx, next, join.chat, join.from) },
-    fn(_reaction) { next() },
+    fn(chat_member_updated) {
+      use member <- handle.joined_user(chat_member_updated, next)
+      check_and_reply(ctx, next, chat_member_updated.chat, member)
+    },
+    fn(_reaction) {
+      //redundant check, seems like cas db has only users who posted spam message
+      next()
+    },
     next,
   )
 }
@@ -57,7 +67,7 @@ fn check_and_reply(ctx: BotContext, next, chat: types.Chat, from: types.User) {
   let cas_offences = ctx.session.dependencies.cas_check(from.id)
   use <- bool.lazy_guard(result.unwrap(cas_offences, 0) <= 0, next)
 
-  log.printf("Ctx: {0} Ban {1} reason: CAS", [
+  log.printf("Ctx: {0} Ban {1} Filter: cas Reason: CAS", [
     helpers.view_chat(chat),
     helpers.view_user(from),
   ])

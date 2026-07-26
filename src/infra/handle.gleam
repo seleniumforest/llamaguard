@@ -22,7 +22,7 @@ pub fn apply_to_targets(
   let trusted = !trusted_senders && session.is_trusted_sender
   use <- bool.lazy_guard(trusted, next)
 
-  let newcomer = newcomers && session.is_sender_on_quarantine
+  let newcomer = newcomers && session.is_sender_newcomer
   let chatsender = chatsenders && session.is_sender_a_chat
 
   case newcomer || chatsender {
@@ -94,18 +94,61 @@ pub fn upd(
   }
 }
 
+pub fn joined_user(
+  chat_member_updated: types.ChatMemberUpdated,
+  fallback: fn() -> a,
+  continuation: fn(types.User) -> a,
+) {
+  case
+    chat_member_updated.old_chat_member,
+    chat_member_updated.new_chat_member
+  {
+    types.ChatMemberRestrictedChatMember(_), types.ChatMemberMemberChatMember(m)
+    | types.ChatMemberLeftChatMember(_), types.ChatMemberMemberChatMember(m)
+    | types.ChatMemberBannedChatMember(_), types.ChatMemberMemberChatMember(m)
+    -> {
+      continuation(m.user)
+    }
+    _, _ -> fallback()
+  }
+}
+
 pub fn msg(
   update: update.Update,
   fallback: fn() -> a,
   has_msg: fn(Message) -> a,
 ) {
-  upd(
-    update,
-    fn(message) { has_msg(message) },
-    fn(_) { fallback() },
-    fn(_) { fallback() },
-    fallback,
-  )
+  upd(update, has_msg, fn(_) { fallback() }, fn(_) { fallback() }, fallback)
+}
+
+pub fn member_upd(
+  update: update.Update,
+  fallback: fn() -> a,
+  mem_upd: fn(types.ChatMemberUpdated) -> a,
+) {
+  upd(update, fn(_) { fallback() }, mem_upd, fn(_) { fallback() }, fallback)
+}
+
+pub fn memberupd_and_reaction(
+  update: Update,
+  on_member_upd: fn(types.ChatMemberUpdated) -> a,
+  on_reaction: fn(types.MessageReactionUpdated) -> a,
+  fallback: fn() -> a,
+) {
+  upd(update, fn(_msg) { fallback() }, on_member_upd, on_reaction, fallback)
+}
+
+pub fn reaction_sender(
+  reaction: types.MessageReactionUpdated,
+  on_user: fn(types.User) -> a,
+  on_channel: fn(types.Chat) -> a,
+  fallback: fn() -> a,
+) {
+  case reaction.user, reaction.actor_chat {
+    Some(user), _ -> on_user(user)
+    _, Some(chat) -> on_channel(chat)
+    _, _ -> fallback()
+  }
 }
 
 pub fn userchat(

@@ -3,6 +3,7 @@ import gleam/json
 import gleam/list
 import gleam/option
 import gleam/result
+import gleam/string
 import infra/alias.{type BotContext}
 import infra/api_calls
 import infra/cmd_utils
@@ -68,63 +69,75 @@ fn handle_user(
 ) -> Nil {
   use uc <- handle.userchat(ctx, next)
 
-  //use <- bool.lazy_guard(!uc.on_quarantine, next)
-
-  let enough_messages =
-    list.length(uc.messages) >= ctx.session.chat_settings.strict_mode_newcomers
-
-  use <- bool.lazy_guard(enough_messages, fn() {
-    uc_repo.save_user_chat_property(
-      ctx.session.db,
-      from.id,
-      message.chat.id,
-      ["on_quarantine"],
-      json.bool(False),
-    )
-    |> result.map(fn(found_and_updated) {
-      case found_and_updated {
-        True -> "Ctx: {0} User {1} has passed quarantine"
-        False ->
-          "Ctx: {0} User {1} has passed quarantine, "
-          <> "but coudn't find his user_chat entry. Some shit may happen."
-      }
-      |> log.printf([
-        helpers.view_chat(message.chat),
-        handle.view_sender(message),
-      ])
-    })
-    |> result.lazy_unwrap(next)
-  })
-
   let has_restricted = strict.has_suspicious_content(message)
   let has_changed_name =
     uc.first_name != from.first_name
     || uc.last_name != option.unwrap(from.last_name, "")
 
-  use <- bool.lazy_guard(!has_restricted && !has_changed_name, next)
+  let unique_msgs = uc.messages |> list.map(fn(m) { m.text }) |> list.unique
+  let has_similar_messages =
+    !list.is_empty(uc.messages)
+    && list.length(unique_msgs) < list.length(uc.messages)
 
-  let _ =
-    uc_repo.delete_user_chat(ctx.session.db, from.id, message.chat.id)
-    |> result.map(fn(res) {
-      case res {
-        True -> "Ctx: {0} Ban user {1} reason: did not passed quarantine ({2})."
-        False ->
-          "Ctx: {0} Ban user {1} reason: did not passed quarantine ({2}), "
-          <> "but coudn't find his user_chat entry. Some shit may happen."
-      }
-      |> log.printf([
-        helpers.view_chat(message.chat),
-        helpers.view_user(from),
-        case has_restricted, has_changed_name {
-          True, True -> "restricted msg + changed name"
-          True, False -> "restricted msg"
-          False, True -> "changed name"
-          _, _ -> ""
-        },
-      ])
-    })
-    |> result.try(fn(_) { api_calls.get_rid_of_msg(ctx, message.message_id) })
-    |> result.try(fn(_) { api_calls.get_rid_of_usersender(ctx, from.id) })
+  let enough_messages =
+    list.length(uc.messages) >= ctx.session.chat_settings.strict_mode_newcomers
 
-  Nil
+  case
+    has_restricted || has_changed_name || has_similar_messages,
+    enough_messages
+  {
+    True, _ -> {
+      let _ =
+        uc_repo.delete_user_chat(ctx.session.db, from.id, message.chat.id)
+        |> result.map(fn(res) {
+          case res {
+            True ->
+              "Ctx: {0} Ban {1} Filter: strict_mode_newcomers Reason: did not passed quarantine. "
+              <> "has_restricted, has_changed_name, has_similar_messages = {2}"
+            False ->
+              "Ctx: {0} Ban {1} Filter: strict_mode_newcomers Reason: did not passed quarantine, "
+              <> "has_restricted, has_changed_name, has_similar_messages = {2}, "
+              <> "but coudn't find his user_chat entry. Some shit may happen."
+          }
+          |> log.printf([
+            helpers.view_chat(message.chat),
+            helpers.view_user(from),
+            string.inspect(#(
+              has_restricted,
+              has_changed_name,
+              has_similar_messages,
+            )),
+          ])
+        })
+        |> result.try(fn(_) {
+          api_calls.get_rid_of_msg(ctx, message.message_id)
+        })
+        |> result.try(fn(_) { api_calls.get_rid_of_usersender(ctx, from.id) })
+
+      Nil
+    }
+    False, True -> {
+      uc_repo.save_user_chat_property(
+        ctx.session.db,
+        from.id,
+        message.chat.id,
+        ["on_quarantine"],
+        json.bool(False),
+      )
+      |> result.map(fn(found_and_updated) {
+        case found_and_updated {
+          True -> "Ctx: {0} User {1} has passed quarantine"
+          False ->
+            "Ctx: {0} User {1} has passed quarantine, "
+            <> "but coudn't find his user_chat entry. Some shit may happen."
+        }
+        |> log.printf([
+          helpers.view_chat(message.chat),
+          handle.view_sender(message),
+        ])
+      })
+      |> result.lazy_unwrap(next)
+    }
+    _, _ -> next()
+  }
 }
