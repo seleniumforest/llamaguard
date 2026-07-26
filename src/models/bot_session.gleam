@@ -3,8 +3,6 @@ import gleam/option.{type Option, None}
 import models/chat_settings.{type ChatSettings}
 import models/error
 import models/user_chat.{type UserChat}
-import telega/storage.{type KeyValueStorage}
-import telega/storage/ets
 
 pub type BotSession(storage_message) {
   BotSession(

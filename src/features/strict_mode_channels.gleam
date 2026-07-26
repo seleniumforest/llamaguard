@@ -1,4 +1,3 @@
-import features/strict_mode_nonmembers
 import gleam/bool
 import gleam/result
 import infra/alias.{type BotContext}

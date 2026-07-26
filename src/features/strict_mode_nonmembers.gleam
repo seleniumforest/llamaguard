@@ -1,6 +1,6 @@
 import gleam/bool
 import gleam/list
-import gleam/option.{Some}
+import gleam/option
 import gleam/result
 import infra/alias.{type BotContext}
 import infra/api_calls

@@ -9,7 +9,6 @@ import infra/helpers
 import infra/log
 import infra/strict
 import models/error.{type BotError}
-import telega/model/types
 import telega/update.{type Command, type Update}
 
 pub fn command(ctx: BotContext, _cmd: Command) -> Result(BotContext, BotError) {
