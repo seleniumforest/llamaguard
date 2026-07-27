@@ -135,12 +135,12 @@ fn handle_user(
   let has_similar_messages =
     !list.is_empty(uc.messages)
     && list.length(unique_msgs) < list.length(uc.messages)
-
+  let empty_username = from.username |> option.is_none
   let enough_messages =
     list.length(uc.messages) >= ctx.session.chat_settings.strict_mode_newcomers
 
   case
-    has_restricted || has_changed_name || has_similar_messages,
+    has_restricted || has_changed_name || has_similar_messages || empty_username,
     enough_messages
   {
     True, _ -> {
@@ -150,10 +150,10 @@ fn handle_user(
           case res {
             True ->
               "Ctx: {0} Ban {1} Filter: strict_mode_newcomers Reason: did not passed quarantine. "
-              <> "has_restricted, has_changed_name, has_similar_messages = {2}"
+              <> "has_restricted, has_changed_name, has_similar_messages, empty_username = {2}"
             False ->
               "Ctx: {0} Ban {1} Filter: strict_mode_newcomers Reason: did not passed quarantine, "
-              <> "has_restricted, has_changed_name, has_similar_messages = {2}, "
+              <> "has_restricted, has_changed_name, has_similar_messages, empty_username = {2}, "
               <> "but coudn't find his user_chat entry. Some shit may happen."
           }
           |> log.printf([
@@ -163,6 +163,7 @@ fn handle_user(
               has_restricted,
               has_changed_name,
               has_similar_messages,
+              empty_username,
             )),
           ])
         })

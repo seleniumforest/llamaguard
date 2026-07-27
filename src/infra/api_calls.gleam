@@ -131,17 +131,28 @@ pub fn get_chat_administrators(ctx: BotContext, chat_id: Int) {
 }
 
 pub fn check_cas(user_id: Int) -> Result(Int, error.BotError) {
-  let assert Ok(base_req) =
+  case
     request.to(
       "https://api.cas.chat/check?user_id=" <> user_id |> int.to_string,
     )
-
-  httpc.send(base_req)
-  |> result.map_error(fn(e) {
-    log.printf_err("fn: check_cas, err: {0}", [string.inspect(e)])
-    error.CasCheckError(e)
-  })
-  |> result.try(fn(x) { x.body |> decode_offences })
+  {
+    Ok(base_req) -> {
+      httpc.send(base_req)
+      |> result.map_error(fn(e) {
+        log.printf_err("fn: check_cas, err: {0}", [string.inspect(e)])
+        error.CasCheckError(e)
+      })
+      |> result.try(fn(x) { x.body |> decode_offences })
+    }
+    Error(_) ->
+      Error(
+        error.GenericError(
+          log.format("WARN: request.to returned Nil for user_id = {0}", [
+            string.inspect(user_id),
+          ]),
+        ),
+      )
+  }
 }
 
 fn decode_offences(str: String) {
