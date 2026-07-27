@@ -4,8 +4,8 @@ import gleam/option.{type Option, None, Some}
 import gleam/string
 import infra/alias
 import infra/helpers
+import infra/log
 import models/bot_session.{type BotSession}
-import models/error.{type BotError, CannotFindRealSender}
 import models/user_chat
 import telega/model/types.{type Message}
 import telega/update.{type Update}
@@ -36,17 +36,23 @@ pub fn apply_to_targets(
   }
 }
 
-pub fn get_real_sender_by_upd(
-  update: Update,
-) -> Result(#(Int, Option(String)), BotError) {
+pub fn get_real_sender_by_upd(update: Update) -> #(Int, Option(String)) {
   upd(
     update,
     fn(message) {
       real_sender(
         message,
-        fn(from) { Ok(#(from.id, from.username)) },
-        fn(sc) { Ok(#(sc.id, sc.username)) },
-        fn() { Error(CannotFindRealSender) },
+        fn(from) { #(from.id, from.username) },
+        fn(sc) { #(sc.id, sc.username) },
+        fn() {
+          log.printf_err(
+            "WARN: Cannot find real sender id for upd {0}. using update.from_id",
+            [
+              string.inspect(update),
+            ],
+          )
+          #(update.from_id, option.None)
+        },
       )
     },
     fn(chat_member_updated) {
@@ -55,7 +61,6 @@ pub fn get_real_sender_by_upd(
         types.ChatMemberLeftChatMember(l) -> #(l.user.id, l.user.username)
         _ -> #(chat_member_updated.from.id, chat_member_updated.from.username)
       }
-      |> Ok
     },
     fn(message_reaction_updated) {
       reaction_sender(
@@ -64,9 +69,8 @@ pub fn get_real_sender_by_upd(
         fn(sc) { #(sc.id, sc.username) },
         fn() { #(update.from_id, option.None) },
       )
-      |> Ok
     },
-    fn() { Ok(#(update.from_id, option.None)) },
+    fn() { #(update.from_id, option.None) },
   )
 }
 

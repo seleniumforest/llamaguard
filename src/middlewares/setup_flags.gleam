@@ -15,7 +15,7 @@ pub fn setup_flags() {
     fn(ctx: BotContext, upd: update.Update) {
       let cs = ctx.session.chat_settings
       let is_private_chat = upd.chat_id > 0
-      let assert Ok(real_sender) = handle.get_real_sender_by_upd(upd)
+      let real_sender = handle.get_real_sender_by_upd(upd)
       let is_sender_a_chat = real_sender.0 < 0
 
       let is_admin =

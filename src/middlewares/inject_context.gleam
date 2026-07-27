@@ -95,17 +95,7 @@ pub fn inject_chat_settings(db) {
 pub fn inject_user_chat() {
   fn(handler) {
     fn(ctx: BotContext, update: Update) {
-      let real_sender = case handle.get_real_sender_by_upd(update) {
-        Ok(rs) -> rs
-        Error(e) -> {
-          log.printf(
-            "WARN: Cannot find real sender id. Using from_id. ctx: {0} \nupd: {1} \nerr : {2}",
-            [string.inspect(ctx), string.inspect(update), string.inspect(e)],
-          )
-
-          #(update.from_id, option.None)
-        }
-      }
+      let real_sender = handle.get_real_sender_by_upd(update)
 
       let user_chat =
         uc_storage.get_user_chat(
