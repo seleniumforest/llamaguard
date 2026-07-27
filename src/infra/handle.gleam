@@ -59,11 +59,12 @@ pub fn get_real_sender_by_upd(
       |> Ok
     },
     fn(message_reaction_updated) {
-      case message_reaction_updated.user, message_reaction_updated.actor_chat {
-        Some(user), _ -> #(user.id, user.username)
-        _, Some(sc) -> #(sc.id, sc.username)
-        _, _ -> #(update.from_id, option.None)
-      }
+      reaction_sender(
+        message_reaction_updated,
+        fn(user) { #(user.id, user.username) },
+        fn(sc) { #(sc.id, sc.username) },
+        fn() { #(update.from_id, option.None) },
+      )
       |> Ok
     },
     fn() { Ok(#(update.from_id, option.None)) },
