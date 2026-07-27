@@ -28,6 +28,7 @@ pub fn checker(
   upd: Update,
   next: fn(BotContext, Update) -> Nil,
 ) -> Nil {
+  log.debug(ctx.dependencies.log, "strict_mode_nonmembers")
   let next = fn() { next(ctx, upd) }
 
   use <- bool.lazy_guard(
@@ -146,21 +147,28 @@ pub fn handle_reaction(
       case mem {
         types.ChatMemberLeftChatMember(member) -> {
           log.printf(
-            "Ctx: {0} Ban {1} Filter: strict_mode_nonmembers Reason: non-member reaction",
+            "Ctx: {0} Delete reaction {1} Filter: strict_mode_nonmembers Reason: non-member reaction",
             [
               helpers.view_chat(message_reaction_updated.chat),
               helpers.view_user(member.user),
             ],
           )
 
-          api_calls.get_rid_of_usersender(ctx, user.id)
-          |> result.try(fn(_) {
-            api_calls.get_rid_of_usersender_reactions(
-              ctx,
-              message_reaction_updated.chat.id,
-              user.id,
-            )
-          })
+          // just for a test
+          // api_calls.get_rid_of_usersender(ctx, user.id)
+          // |> result.try(fn(_) {
+          //   api_calls.get_rid_of_usersender_reactions(
+          //     ctx,
+          //     message_reaction_updated.chat.id,
+          //     user.id,
+          //   )
+          // })
+
+          api_calls.get_rid_of_usersender_reactions(
+            ctx,
+            message_reaction_updated.chat.id,
+            user.id,
+          )
           |> result.try(fn(_) { Ok(Nil) })
         }
         _ -> Ok(next())

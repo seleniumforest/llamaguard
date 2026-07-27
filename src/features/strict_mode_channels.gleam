@@ -25,6 +25,7 @@ pub fn checker(
   upd: Update,
   next: fn(BotContext, Update) -> Nil,
 ) -> Nil {
+  log.debug(ctx.dependencies.log, "strict_mode_channels")
   let next = fn() { next(ctx, upd) }
   use <- bool.lazy_guard(!ctx.session.chat_settings.strict_mode_channels, next)
   use <- handle.apply_to_targets(

@@ -26,6 +26,7 @@ pub fn checker(
   upd: Update,
   next: fn(BotContext, Update) -> Nil,
 ) -> Nil {
+  log.debug(ctx.dependencies.log, "kick_new_accounts")
   let next = fn() { next(ctx, upd) }
   let ids_to_delete = ctx.session.chat_settings.kick_new_accounts
   use <- bool.lazy_guard(ids_to_delete <= 0, next)
@@ -48,7 +49,7 @@ pub fn checker(
       use <- bool.lazy_guard(!needs_ban, next)
 
       log.printf(
-        "Ctx: {0} Ban {1} Filter: kick_new_accounts Reason: fresh account",
+        "Ctx: {0} Ban {1} Filter: kick_new_accounts Reason: msg from fresh account",
         [
           helpers.view_chat(chat_member_updated.chat),
           helpers.view_user(chat_member_updated.from),
@@ -67,7 +68,7 @@ pub fn checker(
           use <- bool.lazy_guard(!needs_ban, next)
 
           log.printf(
-            "Ctx: {0} Ban {1} Filter: kick_new_accounts Reason: fresh account",
+            "Ctx: {0} Ban {1} Filter: kick_new_accounts Reason: reaction from fresh account",
             [
               helpers.view_chat(reaction.chat),
               helpers.view_user(user),
@@ -75,6 +76,13 @@ pub fn checker(
           )
 
           api_calls.get_rid_of_usersender(ctx, user.id)
+          |> result.try(fn(_) {
+            api_calls.get_rid_of_usersender_reactions(
+              ctx,
+              reaction.chat.id,
+              user.id,
+            )
+          })
           |> result.map(fn(_) { Nil })
           |> result.lazy_unwrap(next)
         },

@@ -66,6 +66,7 @@ pub fn checker(
   upd: update.Update,
   next: fn(BotContext, update.Update) -> Nil,
 ) -> Nil {
+  log.debug(ctx.dependencies.log, "ban_language")
   let next = fn() { next(ctx, upd) }
   use <- bool.lazy_guard(ctx.session.chat_settings.banned_languages == [], next)
 
@@ -104,6 +105,7 @@ fn check_reacted_chat(
   next: fn() -> Nil,
 ) {
   let text = chatsender.title |> option.unwrap("")
+  echo text
 
   case
     helpers.check_banned_lang(ctx.session.chat_settings.banned_languages, text)

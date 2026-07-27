@@ -29,6 +29,7 @@ pub fn checker(
   upd: Update,
   next: fn(BotContext, Update) -> Nil,
 ) -> Nil {
+  log.debug(ctx.dependencies.log, "check_chat_clones")
   let next = fn() { next(ctx, upd) }
   use <- bool.lazy_guard(!ctx.session.chat_settings.check_chat_clones, next)
 

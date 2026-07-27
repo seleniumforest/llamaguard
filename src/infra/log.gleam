@@ -3,6 +3,7 @@ import gleam/io
 import gleam/string
 import gleam/time/calendar
 import gleam/time/timestamp
+import models/deps
 
 pub fn format(format: String, data: List(String)) -> String {
   format_loop(format, data, 0)
@@ -22,6 +23,13 @@ pub fn printf_err(format: String, data: List(String)) {
 
 pub fn print_err(format: String) {
   format_loop(format, [], 0) |> with_datetime |> io.println_error
+}
+
+pub fn debug(log_lvl: deps.LogLvl, msg: String) {
+  case log_lvl {
+    deps.Debug -> printf("DEBUG: {0}", [msg])
+    deps.Verbose -> Nil
+  }
 }
 
 fn with_datetime(str: String) -> String {

@@ -1,10 +1,12 @@
 import gleam/dynamic/decode as dyn_decode
 import gleam/json
 import models/cached.{type Cached, Cached}
-import models/decode.{bool_field, int_field, string_list_field}
+import models/decode.{bool_field, int_field, string_field, string_list_field}
 
 pub type ChatSettings {
   ChatSettings(
+    //just for convinient browsing 
+    title: String,
     kick_new_accounts: Int,
     strict_mode_nonmembers: Bool,
     strict_mode_channels: Bool,
@@ -26,6 +28,7 @@ pub type ChatSettings {
 
 pub fn default() {
   ChatSettings(
+    title: "",
     kick_new_accounts: 0,
     no_links: False,
     strict_mode_nonmembers: False,
@@ -47,6 +50,7 @@ pub fn default() {
 
 pub fn chat_encoder(chat: ChatSettings) {
   json.object([
+    #("title", json.string(chat.title)),
     #("kick_new_accounts", json.int(chat.kick_new_accounts)),
     #("strict_mode_newcomers", json.int(chat.strict_mode_newcomers)),
     #("strict_mode_nonmembers", json.bool(chat.strict_mode_nonmembers)),
@@ -72,6 +76,7 @@ pub fn chat_encoder(chat: ChatSettings) {
 }
 
 pub fn chat_decoder() {
+  use title <- string_field("title")
   use kick_new_accounts <- int_field("kick_new_accounts")
   use strict_mode_nonmembers <- bool_field("strict_mode_nonmembers")
   use strict_mode_channels <- bool_field("strict_mode_channels")
@@ -96,6 +101,7 @@ pub fn chat_decoder() {
   )
 
   dyn_decode.success(ChatSettings(
+    title:,
     kick_new_accounts:,
     no_links:,
     strict_mode_nonmembers:,

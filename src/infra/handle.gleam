@@ -24,7 +24,6 @@ pub fn apply_to_targets(
 
   let newcomer = newcomers && session.is_sender_newcomer
   let chatsender = chatsenders && session.is_sender_a_chat
-
   case newcomer || chatsender {
     True -> handler()
     False -> {

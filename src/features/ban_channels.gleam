@@ -54,6 +54,7 @@ pub fn checker(
   upd: Update,
   next: fn(BotContext, Update) -> Nil,
 ) -> Nil {
+  log.debug(ctx.dependencies.log, "ban_channels")
   let next = fn() { next(ctx, upd) }
   use <- bool.lazy_guard(!ctx.session.chat_settings.ban_channels, next)
   use <- handle.apply_to_targets(

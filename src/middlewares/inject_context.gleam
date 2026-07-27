@@ -3,6 +3,7 @@ import gleam/option
 import gleam/result
 import gleam/string
 import infra/alias.{type BotContext}
+import infra/api_calls
 import infra/cache_validation
 import infra/handle
 import infra/log
@@ -25,7 +26,27 @@ pub fn inject_chat_settings(db) {
                 ctx.update.chat_id |> int.to_string,
               ])
 
-              cs_storage.create_chat_settings(db, ctx.update.chat_id)
+              let title = case api_calls.get_chat(ctx, ctx.update.chat_id) {
+                Ok(chat) -> {
+                  case chat.title, chat.username {
+                    option.Some(title), option.Some(username) ->
+                      log.format("{0} (1)", [title, username])
+                    option.Some(title), option.None -> title
+                    option.None, option.Some(username) -> username
+                    _, _ -> ""
+                  }
+                }
+                Error(e) -> {
+                  log.printf_err(
+                    "WARN: error returned when tried to get chat info fn inject_chat_settings err {0}"
+                      <> "Processing chat id {1} with empty title",
+                    [string.inspect(e), int.to_string(ctx.update.chat_id)],
+                  )
+                  ""
+                }
+              }
+
+              cs_storage.create_chat_settings(db, ctx.update.chat_id, title)
             }
             _ -> Error(err)
           }

@@ -49,7 +49,7 @@ fn call(
       start_time: None,
       log_prefix: None,
       bot_info: factory.bot_user(),
-      dependencies: deps.Deps(cache:),
+      dependencies: deps.Deps(cache:, log: deps.Verbose),
     )
     |> setup.with_middlewares(update, s)
     |> setup.with_settings(settings)

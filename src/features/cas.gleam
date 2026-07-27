@@ -25,6 +25,7 @@ pub fn checker(
   upd: Update,
   next: fn(BotContext, Update) -> Nil,
 ) -> Nil {
+  log.debug(ctx.dependencies.log, "cas")
   let next = fn() { next(ctx, upd) }
   use <- bool.lazy_guard(!ctx.session.chat_settings.cas_enabled, next)
 

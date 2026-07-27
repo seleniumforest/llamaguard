@@ -33,6 +33,7 @@ pub fn checker(
   upd: Update,
   next: fn(BotContext, Update) -> Nil,
 ) -> Nil {
+  log.debug(ctx.dependencies.log, "strict_mode_newcomers")
   let next = fn() { next(ctx, upd) }
   use <- bool.lazy_guard(
     ctx.session.chat_settings.strict_mode_newcomers <= 0,
@@ -47,17 +48,73 @@ pub fn checker(
     next:,
   )
 
-  use message <- handle.msg(upd, next)
-
-  handle.real_sender(
-    message,
-    fn(from) { handle_user(ctx, next, message, from) },
-    fn(_sc) {
-      //chat cannot be a newcomer because there's no event to this 
-      //todo think about workaround 
+  handle.upd(
+    upd,
+    fn(message) {
+      handle.real_sender(
+        message,
+        fn(from) { handle_user(ctx, next, message, from) },
+        fn(_sc) {
+          //chat cannot be a newcomer because there's no event to this 
+          //todo think about workaround 
+          next()
+        },
+        next,
+      )
+    },
+    fn(_chat_member_updated) {
+      //todo move  fn(chat_member_updated) from newcomers events here 
       next()
     },
+    fn(reaction) {
+      handle_reaction(ctx, upd, reaction, next) |> result.lazy_unwrap(next)
+    },
     next,
+  )
+}
+
+pub fn handle_reaction(
+  ctx: BotContext,
+  _upd: Update,
+  message_reaction_updated: types.MessageReactionUpdated,
+  next: fn() -> Nil,
+) {
+  use <- bool.lazy_guard(
+    message_reaction_updated.new_reaction |> list.is_empty,
+    fn() { Ok(next()) },
+  )
+
+  handle.reaction_sender(
+    message_reaction_updated,
+    fn(user) {
+      log.printf(
+        "Ctx: {0} Delete reaction {1} Filter: strict_mode_newcomers Reason: newcomer reaction",
+        [
+          helpers.view_chat(message_reaction_updated.chat),
+          helpers.view_user(user),
+        ],
+      )
+
+      // just for a test, maybe we can count these reactions and ban after threshold
+
+      // api_calls.get_rid_of_usersender(ctx, user.id)
+      // |> result.try(fn(_) {
+      //   api_calls.get_rid_of_usersender_reactions(
+      //     ctx,
+      //     message_reaction_updated.chat.id,
+      //     user.id,
+      //   )
+      // })
+
+      api_calls.get_rid_of_usersender_reactions(
+        ctx,
+        message_reaction_updated.chat.id,
+        user.id,
+      )
+      |> result.try(fn(_) { Ok(Nil) })
+    },
+    fn(_actor_chat) { Ok(next()) },
+    fn() { Ok(next()) },
   )
 }
 

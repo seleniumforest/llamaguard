@@ -49,6 +49,7 @@ pub fn checker(
   upd: Update,
   next: fn(BotContext, Update) -> Nil,
 ) -> Nil {
+  log.debug(ctx.dependencies.log, "banned_words")
   let next = fn() { next(ctx, upd) }
   let banned_words = ctx.session.chat_settings.banned_words
   let needs_check = !list.is_empty(banned_words)

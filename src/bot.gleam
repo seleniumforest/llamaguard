@@ -74,9 +74,18 @@ pub fn main() {
     |> router.on_custom(should_check, handle_update)
 
   let assert Ok(token) = env.get_string("BOT_TOKEN")
+  let log = case env.get_string("LOG") {
+    Ok(log) ->
+      case string.lowercase(log) {
+        "debug" -> deps.Debug
+        _ -> deps.Verbose
+      }
+    Error(_) -> deps.Verbose
+  }
+
   let assert Ok(_) =
     telega.new_for_polling(telega_httpc.new(token:))
-    |> telega.with_dependencies(deps.Deps(cache:))
+    |> telega.with_dependencies(deps.Deps(cache:, log:))
     |> telega.with_router(router)
     |> telega.set_drop_pending_updates(True)
     |> telega.with_catch_handler(fn(ctx, err) {
@@ -111,6 +120,7 @@ pub fn main() {
 
 fn handle_update(ctx: BotContext, upd: Update) -> Result(BotContext, BotError) {
   //to avoid "race conditions" make spawns per-sender
+  log.debug(ctx.dependencies.log, string.inspect(upd))
   process.spawn_unlinked(fn() {
     use ctx, upd <- strict_mode_newcomers.checker(ctx, upd)
     use ctx, upd <- strict_mode_channels.checker(ctx, upd)

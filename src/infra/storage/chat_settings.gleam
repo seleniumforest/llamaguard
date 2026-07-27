@@ -7,9 +7,13 @@ import infra/storage/kvstorage.{type StorageMessage, Create, Get, SaveProperty}
 import models/chat_settings as cs
 import models/error.{type BotError, InvalidValueError}
 
-pub fn create_chat_settings(actor: Subject(StorageMessage), chat_id: Int) {
+pub fn create_chat_settings(
+  actor: Subject(StorageMessage),
+  chat_id: Int,
+  title: String,
+) {
   let default_chat =
-    cs.default()
+    cs.ChatSettings(..cs.default(), title:)
     |> cs.chat_encoder
 
   let json_data =
