@@ -175,8 +175,11 @@ pub fn real_sender(
 ) {
   case msg.guest_bot_caller_user, msg.sender_chat, msg.from {
     Some(caller), _, _ -> on_user(caller)
-    _, Some(sc), Some(from) if from.id == 777_000 || from.id == 136_817_688 ->
-      on_channel(sc)
+    _, Some(sc), Some(from)
+      if from.id == 777_000
+      || from.id == 136_817_688
+      || from.id == 1_087_968_824
+    -> on_channel(sc)
     _, None, Some(from) -> on_user(from)
     _, Some(sc), None -> on_channel(sc)
     _, _, _ -> fallback()

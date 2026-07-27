@@ -23,6 +23,7 @@ pub fn setup_flags() {
         |> list.contains(real_sender.0)
 
       let is_linked_channel = cs.linked_channel_id.value == real_sender.0
+      let is_anonymous_bot = real_sender.0 == upd.chat_id
 
       let is_trusted =
         ctx.session.chat_settings.trusted_users
@@ -94,7 +95,10 @@ pub fn setup_flags() {
           session: BotSession(
             ..ctx.session,
             is_admin:,
-            is_trusted_sender: is_trusted || is_linked_channel || is_admin,
+            is_trusted_sender: is_trusted
+              || is_linked_channel
+              || is_admin
+              || is_anonymous_bot,
             is_private_chat:,
             real_sender:,
             is_sender_non_member:,
