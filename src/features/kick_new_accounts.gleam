@@ -49,7 +49,7 @@ pub fn checker(
       use <- bool.lazy_guard(!needs_ban, next)
 
       log.printf(
-        "Ctx: {0} Ban {1} Filter: kick_new_accounts Reason: msg from fresh account",
+        "Ctx: {0} Ban {1} Filter: kick_new_accounts Reason: fresh account",
         [
           helpers.view_chat(chat_member_updated.chat),
           helpers.view_user(chat_member_updated.from),
