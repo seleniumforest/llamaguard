@@ -62,9 +62,23 @@ pub fn checker(
         next,
       )
     },
-    fn(_chat_member_updated) {
-      //todo move  fn(chat_member_updated) from newcomers events here 
-      next()
+    fn(chat_member_updated) {
+      use user <- handle.joined_user(chat_member_updated, next)
+      let empty_username = user.username |> option.is_none
+
+      use <- bool.lazy_guard(!empty_username, next)
+
+      log.printf(
+        "Ctx: {0} Ban {1} Filter: strict_mode_newcomers Reason: empty username",
+        [
+          helpers.view_chat(chat_member_updated.chat),
+          helpers.view_user(user),
+        ],
+      )
+
+      api_calls.get_rid_of_usersender(ctx, user.id)
+      |> result.map(fn(_) { Nil })
+      |> result.lazy_unwrap(next)
     },
     fn(reaction) {
       handle_reaction(ctx, upd, reaction, next) |> result.lazy_unwrap(next)
@@ -135,12 +149,12 @@ fn handle_user(
   let has_similar_messages =
     !list.is_empty(uc.messages)
     && list.length(unique_msgs) < list.length(uc.messages)
-  let empty_username = from.username |> option.is_none
+
   let enough_messages =
     list.length(uc.messages) >= ctx.session.chat_settings.strict_mode_newcomers
 
   case
-    has_restricted || has_changed_name || has_similar_messages || empty_username,
+    has_restricted || has_changed_name || has_similar_messages,
     enough_messages
   {
     True, _ -> {
@@ -150,10 +164,10 @@ fn handle_user(
           case res {
             True ->
               "Ctx: {0} Ban {1} Filter: strict_mode_newcomers Reason: did not passed quarantine. "
-              <> "has_restricted, has_changed_name, has_similar_messages, empty_username = {2}"
+              <> "has_restricted, has_changed_name, has_similar_messages = {2}"
             False ->
               "Ctx: {0} Ban {1} Filter: strict_mode_newcomers Reason: did not passed quarantine, "
-              <> "has_restricted, has_changed_name, has_similar_messages, empty_username = {2}, "
+              <> "has_restricted, has_changed_name, has_similar_messages = {2}, "
               <> "but coudn't find his user_chat entry. Some shit may happen."
           }
           |> log.printf([
@@ -163,7 +177,6 @@ fn handle_user(
               has_restricted,
               has_changed_name,
               has_similar_messages,
-              empty_username,
             )),
           ])
         })
