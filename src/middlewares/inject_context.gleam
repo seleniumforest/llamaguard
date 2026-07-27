@@ -30,7 +30,7 @@ pub fn inject_chat_settings(db) {
                 Ok(chat) -> {
                   case chat.title, chat.username {
                     option.Some(title), option.Some(username) ->
-                      log.format("{0} (1)", [title, username])
+                      log.format("{0} ({1})", [title, username])
                     option.Some(title), option.None -> title
                     option.None, option.Some(username) -> username
                     _, _ -> ""
