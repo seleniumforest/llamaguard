@@ -14,11 +14,11 @@ import models/error
 import telega/bot.{Context}
 import telega/update.{type Update}
 
-pub fn inject_chat_settings(db) {
+pub fn inject_chat_settings() {
   fn(handler) {
     fn(ctx: BotContext, update: Update) {
       let chat =
-        cs_storage.get_chat(db, ctx.update.chat_id)
+        cs_storage.get_chat(ctx.dependencies.db, ctx.update.chat_id)
         |> result.try_recover(fn(err) {
           case err {
             error.EmptyDataError -> {
@@ -46,7 +46,11 @@ pub fn inject_chat_settings(db) {
                 }
               }
 
-              cs_storage.create_chat_settings(db, ctx.update.chat_id, title)
+              cs_storage.create_chat_settings(
+                ctx.dependencies.db,
+                ctx.update.chat_id,
+                title,
+              )
             }
             _ -> Error(err)
           }
@@ -68,7 +72,7 @@ pub fn inject_chat_settings(db) {
           //Ok(ctx)
         }
         Ok(chat_settings) -> {
-          let session = BotSession(..ctx.session, chat_settings:, db:)
+          let session = BotSession(..ctx.session, chat_settings:)
           let first_injected_ctx = Context(..ctx, session:)
 
           let #(new_ctx, errors) =
@@ -99,7 +103,7 @@ pub fn inject_user_chat() {
 
       let user_chat =
         uc_storage.get_user_chat(
-          ctx.session.db,
+          ctx.dependencies.db,
           real_sender.0,
           ctx.update.chat_id,
         )

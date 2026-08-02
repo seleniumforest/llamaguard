@@ -159,7 +159,7 @@ fn handle_user(
   {
     True, _ -> {
       let _ =
-        uc_repo.delete_user_chat(ctx.session.db, from.id, message.chat.id)
+        uc_repo.set_user_banned(ctx.dependencies.db, from.id, message.chat.id)
         |> result.map(fn(res) {
           case res {
             True ->
@@ -189,7 +189,7 @@ fn handle_user(
     }
     False, True -> {
       uc_repo.save_user_chat_property(
-        ctx.session.db,
+        ctx.dependencies.db,
         from.id,
         message.chat.id,
         ["on_quarantine"],

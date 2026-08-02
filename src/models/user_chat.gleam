@@ -9,6 +9,7 @@ pub type UserChat {
     on_quarantine: Bool,
     first_name: String,
     last_name: String,
+    banned: Bool,
   )
 }
 
@@ -23,6 +24,7 @@ pub fn default() {
     on_quarantine: False,
     first_name: "",
     last_name: "",
+    banned: False,
   )
 }
 
@@ -40,6 +42,7 @@ pub fn user_chat_encoder(uc: UserChat) {
     #("on_quarantine", json.bool(uc.on_quarantine)),
     #("first_name", json.string(uc.first_name)),
     #("last_name", json.string(uc.last_name)),
+    #("banned", json.bool(uc.banned)),
   ])
 }
 
@@ -62,6 +65,7 @@ pub fn user_chat_decoder() {
   use on_quarantine <- decode.bool_field("on_quarantine")
   use first_name <- decode.string_field("first_name")
   use last_name <- decode.string_field("last_name")
+  use banned <- decode.bool_field("banned")
 
   dyn_decode.success(UserChat(
     joined_time:,
@@ -69,5 +73,6 @@ pub fn user_chat_decoder() {
     on_quarantine:,
     first_name:,
     last_name:,
+    banned:,
   ))
 }

@@ -62,7 +62,7 @@ pub fn validate_admin_list(
 
       case
         cs_storage.save_chat_property(
-          ctx.session.db,
+          ctx.dependencies.db,
           ctx.update.chat_id,
           ["admins_list"],
           cached.cacheify(admins_list, fn(data) { json.array(data, json.int) }),
@@ -104,7 +104,7 @@ pub fn validate_linked_channel(
 
       case
         cs_storage.save_chat_property(
-          ctx.session.db,
+          ctx.dependencies.db,
           ctx.update.chat_id,
           ["linked_channel_id"],
           cached.cacheify(linked_channel_id, fn(data) { json.int(data) }),

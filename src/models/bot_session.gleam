@@ -1,17 +1,14 @@
-import gleam/erlang/process.{type Subject}
+import gleam/json
 import gleam/option.{type Option, None}
+import gleam/string
 import models/chat_settings.{type ChatSettings}
-import models/error
 import models/user_chat.{type UserChat}
 
-pub type BotSession(storage_message) {
+pub type BotSession {
   BotSession(
     //TODO move to telega's builder deps
     chat_settings: ChatSettings,
     user_chat: Option(UserChat),
-    db: Subject(storage_message),
-    resources: Resources,
-    dependencies: Deps,
     is_trusted_sender: Bool,
     is_admin: Bool,
     is_private_chat: Bool,
@@ -23,26 +20,33 @@ pub type BotSession(storage_message) {
   )
 }
 
-pub type Resources {
-  Resources(female_names: List(String), unicode_script_extensions: List(String))
+pub fn session_encoder(session: BotSession) {
+  json.object([
+    #("is_trusted_sender", json.bool(session.is_trusted_sender)),
+    #("is_admin", json.bool(session.is_admin)),
+    #("is_private_chat", json.bool(session.is_private_chat)),
+    #("is_sender_newcomer", json.bool(session.is_sender_newcomer)),
+    #("is_sender_non_member", json.bool(session.is_sender_non_member())),
+    #("is_sender_a_chat", json.bool(session.is_sender_a_chat)),
+    #("is_message_a_comment", json.bool(session.is_message_a_comment)),
+    #("real_sender", json.string(session.real_sender |> string.inspect)),
+  ])
 }
 
-pub type Deps {
-  Deps(cas_check: fn(Int) -> Result(Int, error.BotError))
-}
-
-pub fn default(db: Subject(storage_message)) {
+pub fn default() {
   BotSession(
     chat_settings: chat_settings.default(),
     user_chat: None,
     is_trusted_sender: False,
     is_admin: False,
     is_private_chat: False,
-    db:,
-    resources: Resources(female_names: [], unicode_script_extensions: []),
-    dependencies: Deps(cas_check: fn(_) {
-      panic as "ERR: cas_check was not injected! Some shit happened"
-    }),
+    // dependencies: Deps(
+    //   cas_check: fn(_) {
+    //     panic as "ERR: cas_check was not injected! Some shit happened"
+    //   },
+    //   db:,
+    //   resources: Resources(female_names: [], unicode_script_extensions: []),
+    // ),
     real_sender: #(0, None),
     is_sender_newcomer: False,
     is_sender_non_member: fn() { False },

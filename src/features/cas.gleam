@@ -65,7 +65,7 @@ pub fn checker(
 }
 
 fn check_and_reply(ctx: BotContext, next, chat: types.Chat, from: types.User) {
-  let cas_offences = ctx.session.dependencies.cas_check(from.id)
+  let cas_offences = ctx.dependencies.services.cas_service.cas_check(from.id)
   use <- bool.lazy_guard(result.unwrap(cas_offences, 0) <= 0, next)
 
   log.printf("Ctx: {0} Ban {1} Filter: cas Reason: CAS", [

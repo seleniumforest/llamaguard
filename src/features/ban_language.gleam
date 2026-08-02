@@ -26,7 +26,7 @@ pub fn command(ctx: BotContext, cmd: Command) -> Result(BotContext, BotError) {
   })
 
   let is_valid_lang =
-    ctx.session.resources.unicode_script_extensions
+    ctx.dependencies.resources.unicode_script_extensions
     |> list.any(fn(x) {
       let sanitized = x |> string.lowercase() |> string.trim
       let lang = lang |> string.lowercase() |> string.trim
@@ -189,7 +189,7 @@ fn check_joined_user(
         ],
       )
 
-      let _ = uc_repo.delete_user_chat(ctx.session.db, user.id, chat.id)
+      let _ = uc_repo.set_user_banned(ctx.dependencies.db, user.id, chat.id)
       let _ = api_calls.get_rid_of_usersender(ctx, user.id)
 
       Nil
@@ -227,7 +227,11 @@ fn check_msg(ctx: BotContext, message: types.Message, next: fn() -> Nil) -> Nil 
           )
 
           let _ =
-            uc_repo.delete_user_chat(ctx.session.db, from.id, message.chat.id)
+            uc_repo.set_user_banned(
+              ctx.dependencies.db,
+              from.id,
+              message.chat.id,
+            )
           let _ = api_calls.get_rid_of_usersender(ctx, from.id)
 
           Nil

@@ -108,7 +108,7 @@ fn process_id(ctx: BotContext, id: String) {
   }
 
   cs_storage.save_chat_property(
-    ctx.session.db,
+    ctx.dependencies.db,
     ctx.update.chat_id,
     ["trusted_users"],
     json.array(new_trusted_users, json.string),

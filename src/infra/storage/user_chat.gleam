@@ -41,6 +41,14 @@ pub fn delete_user_chat(
   process.call_forever(actor, fn(a) { Delete(a, build_key(user_id, chat_id)) })
 }
 
+pub fn set_user_banned(
+  actor: Subject(StorageMessage),
+  user_id: Int,
+  chat_id: Int,
+) {
+  save_user_chat_property(actor, user_id, chat_id, ["banned"], json.bool(True))
+}
+
 pub fn save_user_chat_property(
   actor: Subject(StorageMessage),
   user_id: Int,

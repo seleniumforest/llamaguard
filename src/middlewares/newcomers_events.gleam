@@ -36,7 +36,7 @@ pub fn newcomers_events() {
               ]
               let save_result =
                 uc_repo.save_user_chat_property(
-                  ctx.session.db,
+                  ctx.dependencies.db,
                   ctx.session.real_sender.0,
                   upd.chat_id,
                   ["messages"],
@@ -70,7 +70,7 @@ pub fn newcomers_events() {
 
           let _ =
             uc_repo.save_user_chat_property(
-              ctx.session.db,
+              ctx.dependencies.db,
               ctx.session.real_sender.0,
               upd.chat_id,
               ["on_quarantine"],
@@ -126,7 +126,7 @@ pub fn newcomers_events() {
 
               let new_ctx =
                 uc_repo.create_user_chat(
-                  ctx.session.db,
+                  ctx.dependencies.db,
                   m.user.id,
                   upd.chat_id,
                   user_chat.UserChat(
@@ -135,6 +135,7 @@ pub fn newcomers_events() {
                     on_quarantine: True,
                     first_name: m.user.first_name,
                     last_name: m.user.last_name |> option.unwrap(""),
+                    banned: False,
                   ),
                 )
                 |> result.map(fn(created) {
@@ -170,10 +171,28 @@ pub fn newcomers_events() {
               next(new_ctx, upd)
             }
             ChatMemberMemberChatMember(_), ChatMemberBannedChatMember(banned) -> {
-              clean_user_chat(ctx, upd, banned.user, chat_member_updated, next)
+              uc_repo.set_user_banned(
+                ctx.dependencies.db,
+                banned.user.id,
+                chat_member_updated.chat.id,
+              )
+              |> result.try(fn(_) { next(ctx, upd) })
             }
             ChatMemberMemberChatMember(_), ChatMemberLeftChatMember(left) -> {
-              clean_user_chat(ctx, upd, left.user, chat_member_updated, next)
+              uc_repo.delete_user_chat(
+                ctx.dependencies.db,
+                left.user.id,
+                chat_member_updated.chat.id,
+              )
+              |> result.map(fn(is_deleted) {
+                case is_deleted {
+                  True -> bot_session.BotSession(..ctx.session, user_chat: None)
+                  False -> ctx.session
+                }
+              })
+              |> result.try(fn(session) {
+                next(bot.Context(..ctx, session:), upd)
+              })
             }
             _, _ -> lazynext()
           }
@@ -183,21 +202,4 @@ pub fn newcomers_events() {
       )
     }
   }
-}
-
-fn clean_user_chat(
-  ctx: alias.BotContext,
-  upd,
-  user: types.User,
-  chat_member_updated: types.ChatMemberUpdated,
-  next,
-) {
-  uc_repo.delete_user_chat(ctx.session.db, user.id, chat_member_updated.chat.id)
-  |> result.map(fn(is_deleted) {
-    case is_deleted {
-      True -> bot_session.BotSession(..ctx.session, user_chat: None)
-      False -> ctx.session
-    }
-  })
-  |> result.try(fn(session) { next(bot.Context(..ctx, session:), upd) })
 }

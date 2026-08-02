@@ -27,7 +27,7 @@ pub fn flip_bool_setting_and_reply(
   let new_state = !current_state
 
   use _ <- result.try(cs_storage.save_chat_property(
-    ctx.session.db,
+    ctx.dependencies.db,
     ctx.update.chat_id,
     setting_path,
     json.bool(new_state),
@@ -73,7 +73,7 @@ pub fn handle_number_and_reply(
 
   let save_n_reply = fn(new_value: Int, pattern: String, display_val: Int) {
     cs_storage.save_chat_property(
-      ctx.session.db,
+      ctx.dependencies.db,
       ctx.update.chat_id,
       setting_path,
       json.int(new_value),
@@ -127,7 +127,7 @@ pub fn insert_or_delete_and_reply(
   }
 
   use _ <- result.try(cs_storage.save_chat_property(
-    ctx.session.db,
+    ctx.dependencies.db,
     ctx.update.chat_id,
     setting_path,
     json.array(new_state, json.string),

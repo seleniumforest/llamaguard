@@ -19,20 +19,20 @@ import gleam/list
 import gleam/option.{None, Some}
 import gleam/string
 import infra/alias.{type BotContext}
+import infra/api_calls
 import infra/handle
+import infra/helpers
 import infra/log
 import infra/storage/kvstorage
-import middlewares/dependencies.{inject_dependencies}
 import middlewares/inject_context.{inject_chat_settings, inject_user_chat}
 import middlewares/new_admins.{revalidate_new_admins}
 import middlewares/newcomers_events.{newcomers_events}
-import middlewares/resources.{inject_resources}
 import middlewares/setup_flags.{setup_flags}
 import models/bot_session
 import models/deps
 import models/error.{type BotError}
 import telega
-import telega/bot.{SessionSettings}
+import telega/bot
 import telega/router
 import telega/storage/ets
 import telega/update.{type Update}
@@ -41,15 +41,13 @@ import telega_httpc
 pub fn main() {
   dot.new() |> dot.load
   let db = kvstorage.init("file:data.sqlite3")
-  let resources = resources.load_static_resources()
+  let resources = helpers.load_static_resources()
   let assert Ok(cache) = ets.new("cache")
 
   let router =
     router.new("default")
-    |> router.use_middleware(inject_dependencies())
-    |> router.use_middleware(inject_chat_settings(db))
+    |> router.use_middleware(inject_chat_settings())
     |> router.use_middleware(inject_user_chat())
-    |> router.use_middleware(inject_resources(resources))
     |> router.use_middleware(revalidate_new_admins())
     |> router.use_middleware(setup_flags())
     |> router.use_middleware(newcomers_events())
@@ -71,7 +69,7 @@ pub fn main() {
       list_settings.command,
     )
     |> router.on_commands(["help", "start"], help.command)
-    |> router.on_custom(should_check, handle_update)
+    |> router.on_custom(fn(_) { True }, handle_update)
 
   let assert Ok(token) = env.get_string("BOT_TOKEN")
   let log = case env.get_string("LOG") {
@@ -85,19 +83,28 @@ pub fn main() {
 
   let assert Ok(_) =
     telega.new_for_polling(telega_httpc.new(token:))
-    |> telega.with_dependencies(deps.Deps(cache:, log:))
+    |> telega.with_dependencies(deps.Deps(
+      cache:,
+      log:,
+      db:,
+      resources:,
+      services: deps.Services(cas_service: deps.CasService(api_calls.check_cas)),
+    ))
+    |> telega.use_pre_handler(should_check)
     |> telega.with_router(router)
-    |> telega.set_drop_pending_updates(True)
+    //|> telega.set_drop_pending_updates(True)
     |> telega.with_catch_handler(fn(ctx, err) {
-      log.print_err(ctx.session |> string.inspect)
-      log.print_err(err |> string.inspect)
+      log.printf_err("ERROR: with_catch_handler triggered. Ctx: {0}, err: {1}", [
+        ctx.session |> string.inspect,
+        err |> string.inspect,
+      ])
       Ok(Nil)
     })
     |> telega.with_session_settings(
-      SessionSettings(
+      bot.SessionSettings(
         persist_session: fn(_key, session) { Ok(session) },
-        get_session: fn(_key) { bot_session.default(db) |> Some |> Ok },
-        default_session: fn() { bot_session.default(db) },
+        get_session: fn(_key) { bot_session.default() |> Some |> Ok },
+        default_session: fn() { bot_session.default() },
       ),
     )
     //for some reason, fails on my server with default settings
@@ -137,8 +144,10 @@ fn handle_update(ctx: BotContext, upd: Update) -> Result(BotContext, BotError) {
   Ok(ctx)
 }
 
-pub fn should_check(upd: Update) -> Bool {
-  use message <- handle.msg(upd, fn() { True })
+pub fn should_check(
+  pre_ctx: bot.PreContext(deps.Deps(db)),
+) -> bot.PreRouterResult {
+  use message <- handle.msg(pre_ctx.update, fn() { bot.Continue })
 
   let is_user_join_or_leave_system_msg = case
     message.left_chat_member,
@@ -152,7 +161,7 @@ pub fn should_check(upd: Update) -> Bool {
   //https://core.telegram.org/bots/api#message
   //idk should i check all service msgs for now
   case is_user_join_or_leave_system_msg {
-    True -> False
-    False -> True
+    True -> bot.Stop
+    False -> bot.Continue
   }
 }

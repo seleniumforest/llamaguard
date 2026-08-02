@@ -46,7 +46,10 @@ pub fn checker(
         fn(user) {
           let fullname = helpers.get_fullname(user)
           let is_female_name =
-            strict.has_woman_name(ctx.session.resources.female_names, fullname)
+            strict.has_woman_name(
+              ctx.dependencies.resources.female_names,
+              fullname,
+            )
 
           use <- bool.lazy_guard(!is_female_name, next)
 
@@ -66,7 +69,10 @@ pub fn checker(
         fn(chatsender) {
           let is_female_name = case chatsender.title {
             Some(title) ->
-              strict.has_woman_name(ctx.session.resources.female_names, title)
+              strict.has_woman_name(
+                ctx.dependencies.resources.female_names,
+                title,
+              )
             option.None -> False
           }
 
@@ -94,7 +100,7 @@ pub fn checker(
       use user <- handle.joined_user(join, next)
       let fullname = helpers.get_fullname(user)
       let is_female_name =
-        strict.has_woman_name(ctx.session.resources.female_names, fullname)
+        strict.has_woman_name(ctx.dependencies.resources.female_names, fullname)
 
       use <- bool.lazy_guard(!is_female_name, next)
 
@@ -113,7 +119,10 @@ pub fn checker(
         fn(user) {
           let fullname = helpers.get_fullname(user)
           let is_female_name =
-            strict.has_woman_name(ctx.session.resources.female_names, fullname)
+            strict.has_woman_name(
+              ctx.dependencies.resources.female_names,
+              fullname,
+            )
 
           use <- bool.lazy_guard(!is_female_name, next)
 
@@ -139,7 +148,7 @@ pub fn checker(
         fn(actor_chat) {
           let is_female_name =
             strict.has_woman_name(
-              ctx.session.resources.female_names,
+              ctx.dependencies.resources.female_names,
               actor_chat.title |> option.unwrap(""),
             )
 

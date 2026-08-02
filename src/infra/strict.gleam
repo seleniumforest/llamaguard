@@ -42,7 +42,7 @@ pub fn has_suspicious_content(msg: Message) -> Bool {
   let has_story = msg.story |> option.is_some
   let has_shared_contact = msg.contact |> option.is_some
   let has_shared_via_bot = msg.via_bot |> option.is_some
-  let has_guest_bot = msg.guest_bot_caller_user |> option.is_some
+  let has_sus_guest_bot_call = msg.guest_bot_caller_user |> option.is_some
   let has_caption_entities = filter_entities(msg.caption_entities)
   let has_entities = filter_entities(msg.entities)
   let has_link = case regexp.from_string("https?://\\S+"), msg.text {
@@ -66,16 +66,16 @@ pub fn has_suspicious_content(msg: Message) -> Bool {
   || has_photo
   || has_link
   || has_entities
+  || has_caption_entities
   || has_video
   || has_video_note
   || has_game
   || has_document
   || has_sticker
-  || has_caption_entities
   || has_emoji
   || has_quote
   || has_story
-  || has_guest_bot
+  || has_sus_guest_bot_call
   || has_shared_contact
   || has_shared_via_bot
 }

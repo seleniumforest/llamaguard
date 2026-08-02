@@ -1,10 +1,12 @@
 import gleam/bool
+import gleam/json
 import gleam/list
 import gleam/option.{None, Some}
 import gleam/result
 import infra/alias.{type BotContext}
 import infra/handle
 import infra/helpers
+import infra/log
 import models/bot_session.{BotSession}
 import telega/bot.{Context}
 import telega/model/types
@@ -107,6 +109,11 @@ pub fn setup_flags() {
             is_sender_newcomer:,
           ),
         )
+
+      log.debug(
+        ctx.dependencies.log,
+        json.to_string(bot_session.session_encoder(ctx.session)),
+      )
 
       case upd {
         update.CommandUpdate(..) -> {

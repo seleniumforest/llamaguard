@@ -11,7 +11,7 @@ import telega/model/types.{type Message}
 import telega/update.{type Update}
 
 pub fn apply_to_targets(
-  session session: BotSession(a),
+  session session: BotSession,
   trusted_senders trusted_senders: Bool,
   non_members non_members: Bool,
   newcomers newcomers: Bool,

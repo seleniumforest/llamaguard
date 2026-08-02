@@ -10,10 +10,42 @@ import gleam/time/timestamp
 import infra/alias.{type BotContext}
 import infra/api_calls
 import infra/log
+import models/deps
 import models/error
+import simplifile
 import telega/model/decoder
 import telega/model/encoder
 import telega/model/types.{type Message}
+
+pub fn load_static_resources() {
+  let unicode_script_extensions =
+    load_lines("./res/unicode_script_extensions.txt")
+  let names = load_lines("./res/female_names.txt")
+  let names_rus = load_lines("./res/female_names_rus.txt")
+  let female_names =
+    names
+    |> list.append(names_rus)
+    |> list.unique
+    |> list.map(fn(x) { string.lowercase(x) })
+
+  deps.Resources(female_names:, unicode_script_extensions:)
+}
+
+fn load_lines(path: String) {
+  let lines = simplifile.read(path)
+  case lines {
+    Error(e) -> {
+      let msg =
+        "Cannot load file: " <> path <> " Error: " <> e |> string.inspect
+      panic as msg
+    }
+    Ok(content) -> {
+      content
+      |> string.split("\n")
+      |> list.filter(fn(x) { string.length(x) > 0 })
+    }
+  }
+}
 
 pub fn is_forwarded_msg(msg: Message) {
   msg.reply_to_message
@@ -74,9 +106,9 @@ pub fn match_ids(id1: String, id2: String) {
     Ok(#(uid1, _)), Ok(#(uid2, _)) if uid1 != "" && uid2 != "" -> uid1 == uid2
     //@username and @username
     Ok(#(_, n1)), Ok(#(_, n2)) if n1 != "" && n2 != "" -> n1 == n2
-    //id with id@username
+    //id and id@username
     Error(_), Ok(#(uid, _uname)) if id1 != "" && uid != "" -> id1 == uid
-    //id@username with id
+    //id@username and id
     Ok(#(id, _name)), Error(_) if id2 != "" && id != "" -> id2 == id
     _, _ -> False
   }
