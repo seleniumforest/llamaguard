@@ -1,14 +1,14 @@
-// import features/check_chat_clones.{smart_compare}
-// import gleam/list
-// import gleeunit
+//import features/check_chat_clones.{smart_compare}
+//import gleam/list
+import gleeunit
+
 // import gleeunit/should
 // import infra/log
 // import infra/strict
 
-// pub fn main() {
-//   gleeunit.main()
-// }
-
+pub fn main() {
+  gleeunit.main()
+}
 // pub fn female_name_test() {
 //   let names = ["dina", "daria", "daisy", "veronika", "аня"]
 //   should.be_true(strict.has_woman_name(names, "daisy"))
