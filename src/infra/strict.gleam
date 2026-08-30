@@ -6,7 +6,6 @@ import gleam/regexp
 import gleam/result
 import gleam/string
 import infra/ffi/unicode
-import infra/log
 import telega/model/types.{type Message, type MessageEntity}
 
 pub fn has_woman_name(female_names: List(String), full_name: String) {

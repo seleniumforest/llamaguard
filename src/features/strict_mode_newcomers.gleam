@@ -151,7 +151,7 @@ fn handle_user(
     && list.length(unique_msgs) < list.length(uc.messages)
 
   let enough_messages =
-    list.length(uc.messages) >= ctx.session.chat_settings.strict_mode_newcomers
+    list.length(uc.messages) > ctx.session.chat_settings.strict_mode_newcomers
 
   case
     has_restricted || has_changed_name || has_similar_messages,
