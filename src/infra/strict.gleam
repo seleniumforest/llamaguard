@@ -73,7 +73,9 @@ pub fn has_hidden_numbers(str: option.Option(String)) {
         text
         |> string.trim
         |> string.to_graphemes
-        |> list.filter(fn(ch) { ch != " " })
+        |> list.filter(fn(ch) {
+          ch != " " && ch != "." && ch != "," && ch != "_"
+        })
 
       use <- bool.guard(list.length(text) < 2, False)
 

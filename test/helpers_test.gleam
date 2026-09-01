@@ -46,6 +46,7 @@ pub fn has_hidden_numbers_test() {
   should.be_true(strict.has_hidden_numbers(option.Some("2oo")))
   should.be_true(strict.has_hidden_numbers(option.Some("2oo+")))
   should.be_true(strict.has_hidden_numbers(option.Some("2ООк")))
+  should.be_true(strict.has_hidden_numbers(option.Some("20.0ОО")))
   should.be_true(strict.has_hidden_numbers(option.Some("2ОО к")))
   should.be_true(strict.has_hidden_numbers(option.Some("2OO")))
   should.be_true(strict.has_hidden_numbers(option.Some("20oo")))
