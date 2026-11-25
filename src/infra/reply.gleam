@@ -53,6 +53,7 @@ pub fn reply(
             ephemeral_message_id: None,
           )),
           reply_markup: None,
+          ephemeral_message_parameters: option.None,
         ),
       )
       |> result.map_error(fn(err) { error.TelegaLibError(err) })
@@ -97,6 +98,7 @@ pub fn reply_markup(
             ephemeral_message_id: None,
           )),
           reply_markup: Some(markup),
+          ephemeral_message_parameters: option.None,
         ),
       )
       |> result.map_error(fn(err) { error.TelegaLibError(err) })
